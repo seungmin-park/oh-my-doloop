@@ -191,6 +191,8 @@ const BAND_START = { 아침: 6, 낮: 12, 저녁: 18 };
 const pad = (n) => String(n).padStart(2, "0");
 const bandOf = (time) => {
   const hour = Number(time.slice(0, 2));
+  // 하루는 새벽 4시에 바뀐다. 그 전의 시각은 전날 저녁이다.
+  if (hour < 4) return "저녁";
   return hour < 12 ? "아침" : hour < 18 ? "낮" : "저녁";
 };
 
@@ -210,6 +212,7 @@ function createWheel(el, labels, { loop, label, onPick }) {
   let value = 0;
   let timer;
   let keyTarget = null; // 부드러운 스크롤 중 연속 키 입력의 목표 줄
+  let keyDeadline = 0;
   el.innerHTML = Array.from({ length: count * copies }, (_, i) => `<div class="time-wheel__item" data-i="${i}">${labels[i % count]}</div>`).join("");
   el.tabIndex = 0;
   el.setAttribute("role", "spinbutton");
@@ -247,7 +250,17 @@ function createWheel(el, labels, { loop, label, onPick }) {
   function settle() {
     const row = rowHeight();
     if (!row) return;
-    keyTarget = null;
+    // 키로 움직이는 중에는 목표 줄에 닿을 때까지 값을 스크롤 위치로 덮어쓰지 않는다.
+    if (keyTarget !== null) {
+      if (Math.abs(el.scrollTop - keyTarget * row) > 1) {
+        if (Date.now() < keyDeadline) {
+          timer = setTimeout(settle, 100);
+          return;
+        }
+        el.scrollTop = keyTarget * row;
+      }
+      keyTarget = null;
+    }
     const index = Math.round(el.scrollTop / row);
     const next = loop ? ((index % count) + count) % count : Math.min(count - 1, Math.max(0, index));
     if (loop && (index < count || index >= count * 2)) el.scrollTop = (count + next) * row;
@@ -259,6 +272,10 @@ function createWheel(el, labels, { loop, label, onPick }) {
     clearTimeout(timer);
     timer = setTimeout(settle, 100);
   });
+  // 사용자가 직접 굴리면 키 입력의 목표를 버린다.
+  for (const type of ["wheel", "pointerdown", "touchstart"]) {
+    el.addEventListener(type, () => { keyTarget = null; }, { passive: true });
+  }
   el.addEventListener("click", (event) => {
     const item = event.target.closest("[data-i]");
     if (item) el.scrollTo({ top: Number(item.dataset.i) * rowHeight(), behavior: smooth() });
@@ -276,6 +293,9 @@ function createWheel(el, labels, { loop, label, onPick }) {
       el.scrollTop += shift * row;
       keyTarget += shift;
     }
+    keyDeadline = Date.now() + 1000;
+    clearTimeout(timer);
+    timer = setTimeout(settle, 100);
     el.scrollTo({ top: keyTarget * row, behavior: smooth() });
     pick(next);
   });

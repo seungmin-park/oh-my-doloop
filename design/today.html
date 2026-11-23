@@ -154,10 +154,10 @@ document.addEventListener("contextmenu", (e) => {
   if (item.kind !== "routine") return;
   e.preventDefault();
   const host = target.closest("[data-today]");
+  const box = target.getBoundingClientRect(); // 다시 그리면 target이 떨어지므로 먼저 읽는다.
   selected = id;
   render();
   const focusRow = () => host.querySelector(`[data-toggle="${id}"]`)?.focus();
-  const box = target.getBoundingClientRect();
   openMenu({
     x: e.clientX || box.left,
     y: e.clientY || box.bottom,

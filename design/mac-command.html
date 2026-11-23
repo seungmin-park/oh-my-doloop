@@ -109,7 +109,7 @@ document.addEventListener("input", (e) => {
 // 빠른 추가를 닫으면 팔레트로, 팔레트를 닫으면 오늘로 돌아간다.
 function dismiss() {
   if (view === "add") setView("palette");
-  else if (new URLSearchParams(location.search).has("from")) history.back();
+  else if (new URLSearchParams(location.search).has("from") && history.length > 1) history.back();
   else location.href = "today.html";
 }
 
@@ -135,6 +135,7 @@ document.addEventListener("keydown", (e) => {
     else if (e.key === "ArrowUp" && count) active = (active - 1 + count) % count;
     else if (e.key === "Enter") {
       e.preventDefault();
+      if (e.isComposing || e.keyCode === 229) return; // 한글 조합을 끝내는 Enter는 실행하지 않는다.
       run(matches()[active]);
       return;
     } else return;
