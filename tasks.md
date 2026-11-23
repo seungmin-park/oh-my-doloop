@@ -15,17 +15,17 @@
 - [x] 확인: 사용자 검토, 고칠 곳 반영, 승인
 
 ## 1단계: 뼈대 (Xcode 없이 가능)
-- [ ] `Packages/DoloopCore` Swift 패키지 생성, GRDB 의존성 추가
-- [ ] 모델: List, Tag, Task, ChecklistItem, Reminder
-- [ ] 모델: Routine, RoutineVersion, RoutineRecord, RoutineGroup, Mode, ModeSchedule
-- [ ] 모델: DaySummary, Streak, FocusSession, DayNote, SortOrder
-- [ ] SQLite 스키마와 마이그레이션
-- [ ] 저장소 API: 할 일·습관 만들기/고치기/지우기, 날짜별 조회
-- [ ] 변경 기록: 모든 수정이 기기 id·시각과 함께 로그에 남음
-- [ ] 반복 규칙: 매 n일/주/월, 요일 지정, 예외 요일, 주 n회
-- [ ] 루틴 버전: 고치면 `validAfter`가 붙은 새 버전, 과거 기록 불변
-- [ ] 시간대: 할 일과 루틴 버전의 `schedule`(없음, 시간대, 시각), 시각에서 시간대 계산, 경계(4시, 12시, 18시), 새벽 기록의 전날 귀속, 병합 테스트
-- [ ] 확인: `swift test` 통과 (반복 규칙, 버전 전후 기록, 변경 기록)
+- [x] `Packages/DoloopCore` Swift 패키지 생성, GRDB 의존성 추가
+- [x] 모델: List, Tag, Task, ChecklistItem, Reminder
+- [x] 모델: Routine, RoutineVersion, RoutineRecord, RoutineGroup, Mode, ModeSchedule
+- [x] 모델: DaySummary, Streak, FocusSession, DayNote, SortOrder
+- [x] SQLite 스키마와 마이그레이션
+- [x] 저장소 API: 할 일·습관 만들기/고치기/지우기, 날짜별 조회
+- [x] 변경 기록: 모든 수정이 기기 id·시각과 함께 로그에 남음
+- [x] 반복 규칙: 매 n일/주/월, 요일 지정, 예외 요일, 주 n회
+- [x] 루틴 버전: 고치면 `validAfter`가 붙은 새 버전, 과거 기록 불변
+- [x] 시간대: 할 일과 루틴 버전의 `schedule`(없음, 시간대, 시각), 시각에서 시간대 계산, 경계(4시, 12시, 18시), 새벽 기록의 전날 귀속, 병합 테스트
+- [x] 확인: `scripts/test-core.sh` 통과 (반복 규칙, 버전 전후 기록, 변경 기록)
 
 ## 0단계: 시험판 (Xcode 준비 뒤, 버리는 코드)
 - [ ] 빈 SwiftUI 앱을 무료 계정으로 iPhone에 설치

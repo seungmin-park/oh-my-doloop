@@ -1,6 +1,6 @@
 # oh-my-doloop
 
-제품 계획은 `plan.md`, 작업 목록은 `tasks.md`에 있다.
+제품 계획은 `plan.md`, 작업 목록은 `tasks.md`에 있다. `DoloopCore` 테스트는 `scripts/test-core.sh`로 돌린다. Xcode 없이 `swift test`만 실행하면 Swift Testing 매크로를 찾지 못한다.
 
 ## Code Review Rules
 
