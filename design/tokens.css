@@ -1,0 +1,161 @@
+/* oh-my-doloop 디자인 토큰. 화면과 부품의 색·크기는 여기 값만 쓴다.
+   App/Shared/Theme.swift에 같은 이름과 값으로 옮긴다.
+   색은 light-dark(라이트, 다크)로 적는다. 기본은 시스템 설정을 따르고,
+   목업에서는 <html data-theme="light|dark">로 고정할 수 있다. */
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("fonts/Pretendard-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("fonts/Pretendard-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+
+  /* 배경 세 단계 */
+  --color-bg-window: light-dark(#F5F4F6, #201E24);
+  --color-bg-pane: light-dark(#FBFAFC, #26242A);
+  --color-bg-raised: light-dark(#FFFFFF, #302D36);
+
+  /* 글자 */
+  --color-text-primary: light-dark(#25212A, #F0EDF2);
+  --color-text-secondary: light-dark(#57505E, #BDB6C3);
+  --color-text-tertiary: light-dark(#696270, #A49DAB);
+
+  /* 선. strong은 체크박스처럼 알아봐야 하는 조작부 테두리에 쓴다. */
+  --color-border: light-dark(#E9E6EB, #37343C);
+  --color-border-strong: light-dark(#868090, #857E8D);
+
+  /* 강조색은 하나. 주 버튼, 고른 항목, 오늘 날짜, 포커스에 쓴다. */
+  --color-accent: light-dark(#0A6A8F, #74C7E6);
+  --color-on-accent: light-dark(#FFFFFF, #0E2630);
+  --color-accent-soft: light-dark(#E0EEF4, #233A44);
+
+  /* 상태. 신호등과 행 상태가 같은 색을 쓴다. 모양과 함께 표시한다. */
+  --color-status-done: light-dark(#1F7A4D, #5CC98F);
+  --color-status-partial: light-dark(#8F6400, #E0B04A);
+  --color-status-missed: light-dark(#C2382E, #F0806F);
+  --color-status-rest: light-dark(#4F6D8F, #8FA9C7);
+  --color-status-skipped: light-dark(#696270, #A49DAB);
+  --color-on-status: light-dark(#FFFFFF, #201E24);
+
+  --color-overlay: light-dark(rgb(37 33 42 / 0.28), rgb(0 0 0 / 0.52));
+  --color-shadow: light-dark(rgb(37 33 42 / 0.16), rgb(0 0 0 / 0.48));
+
+  /* 글꼴 */
+  --font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+
+  /* 글자 크기와 줄 높이 */
+  --font-size-caption: 11px;
+  --line-height-caption: 16px;
+  --font-size-body: 13px;
+  --line-height-body: 20px;
+  --font-size-row-title: 14px;
+  --line-height-row-title: 20px;
+  --font-size-popover-title: 16px;
+  --line-height-popover-title: 24px;
+  --font-size-large-title: var(--font-size-stat);
+  --line-height-large-title: var(--line-height-stat);
+  --font-size-timer: 48px;
+  --line-height-timer: 56px;
+  --font-size-screen-title: 20px;
+  --line-height-screen-title: 28px;
+  --font-size-stat: 28px;
+  --line-height-stat: 36px;
+
+  /* 간격 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+
+  /* 아이콘 */
+  --icon-row: 14px;
+  --icon-sidebar: 20px;
+  --icon-button: 24px;
+  --icon-topbar: 28px;
+
+  /* 조작부와 행 */
+  --size-control: 18px;
+  --size-chip: 28px;
+  --row-list: 38px;
+  --row-list-two-line: 58px;
+  --row-sidebar: 32px;
+  --row-command: 40px;
+
+  /* 창 구조 */
+  --size-topbar: 48px;
+  --width-sidebar: 220px;
+  --width-popover: 216px;
+  --width-detail: 280px;
+  --size-tabbar: 56px;
+
+  /* 작은 표시 */
+  --size-dot: 6px;
+  --size-badge: 20px;
+  --size-day: 28px;
+  --size-now-dot: 10px;
+  --size-sheet-handle: 36px;
+  --size-switch-width: 36px;
+  --size-switch-height: 20px;
+  --size-switch-thumb: 16px;
+  --size-wheel-row: 32px;
+
+  /* 하루 흐름 */
+  --width-period: 40px;
+  --width-week: 300px;
+  --width-spine: 2px;
+
+  /* 메뉴와 떠 있는 창 */
+  --width-menu: 176px;
+  --width-palette: 520px;
+  --width-quick-add: 440px;
+  --width-form: 520px;
+
+  /* 캘린더와 집중 */
+  --size-calendar-slot: 16px;
+  --width-calendar-gutter: 40px;
+  --width-calendar-pool: 176px;
+  --size-focus-ring: 240px;
+
+  /* 목업 기기 크기 */
+  --mock-mac-width: 1120px;
+  --mock-mac-height: 760px;
+  --mock-phone-width: 390px;
+  --mock-phone-height: 844px;
+
+  /* 모서리. 요소가 클수록 크게 쓴다. */
+  --radius-control: 4px;
+  --radius-row: 6px;
+  --radius-raised: 10px;
+  --radius-full: 999px;
+
+  /* 선 두께와 그림자 */
+  --border-width: 1px;
+  --focus-ring-width: 2px;
+  --shadow-raised: 0 4px 16px var(--color-shadow);
+
+  /* 움직임 */
+  --motion-fast: 120ms;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}

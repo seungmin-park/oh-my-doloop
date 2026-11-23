@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop 부품</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+
+<main class="gallery">
+  <h1 class="large-title">부품</h1>
+
+  <section class="spec">
+    <h2 class="spec__name">상태 버튼</h2>
+    <div class="spec__body spec__body--inline">
+      <span class="spec__item"><span class="status"></span>비어 있음</span>
+      <span class="spec__item"><span class="status status--done"><svg class="icon icon-check"><use href="#i-check"/></svg></span>달성</span>
+      <span class="spec__item"><span class="status status--rest"><svg class="icon icon-rest"><use href="#i-rest"/></svg></span>쉼</span>
+      <span class="spec__item"><span class="status status--skipped"></span>건너뜀</span>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">체크박스</h2>
+    <div class="spec__body spec__body--inline">
+      <span class="spec__item"><span class="checkbox"></span>남음</span>
+      <span class="spec__item"><span class="checkbox checkbox--done"><svg class="icon icon-check"><use href="#i-check"/></svg></span>완료</span>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">습관 행</h2>
+    <div class="spec__body spec__panel">
+      <div class="row row--two-line is-complete">
+        <span class="status status--done"><svg class="icon icon-check"><use href="#i-check"/></svg></span>
+        <div class="row__body"><span class="row__main"><span class="row__title">비타민 먹기</span><span class="row__context">커피 내리기 전</span></span><div class="row__meta">12일 연속</div></div>
+      </div>
+      <div class="row row--two-line is-selected">
+        <span class="status"></span>
+        <div class="row__body"><span class="row__main"><span class="row__title">일기 세 줄</span><span class="row__context">자기 전</span></span><div class="row__meta">8일 연속</div></div>
+      </div>
+      <div class="row row--two-line is-complete">
+        <span class="status status--rest"><svg class="icon icon-rest"><use href="#i-rest"/></svg></span>
+        <div class="row__body"><span class="row__main"><span class="row__title">저녁 달리기</span><span class="row__context">퇴근 후</span></span><div class="row__meta">쉬는 날</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">할 일 행</h2>
+    <div class="spec__body spec__panel">
+      <div class="row">
+        <button class="checkbox" role="checkbox" aria-checked="false" aria-label="세금 신고 자료 모으기" data-demo-task><svg class="icon icon-check"><use href="#i-check"/></svg></button>
+        <div class="row__body"><span class="row__main"><span class="row__title">세금 신고 자료 모으기</span></span><div class="row__meta"><span class="weight weight--heavy" role="img" aria-label="무거움"></span><span class="badge badge--soon">D-1</span></div></div>
+      </div>
+      <div class="row">
+        <span class="checkbox"></span>
+        <div class="row__body"><span class="row__main"><span class="row__title">치과 예약 전화</span></span><div class="row__meta"><span class="weight" role="img" aria-label="가벼움"></span><span class="badge">D-5</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">메뉴</h2>
+    <div class="spec__body">
+      <div class="menu menu--static" role="menu" aria-label="습관 상태">
+        <button class="menu__item" role="menuitem" tabindex="-1"><span class="status status--done"><svg class="icon icon-check"><use href="#i-check"/></svg></span><span class="menu__label">달성</span><kbd class="menu__key">1</kbd></button>
+        <button class="menu__item is-current" role="menuitem" tabindex="-1"><span class="status status--rest"><svg class="icon icon-rest"><use href="#i-rest"/></svg></span><span class="menu__label">쉼</span><kbd class="menu__key">2</kbd></button>
+        <button class="menu__item" role="menuitem" tabindex="-1"><span class="status status--skipped"></span><span class="menu__label">건너뛰기</span><kbd class="menu__key">3</kbd></button>
+        <button class="menu__item" role="menuitem" tabindex="-1"><span class="status"></span><span class="menu__label">비우기</span><kbd class="menu__key">0</kbd></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">알림 띠</h2>
+    <div class="spec__body">
+      <div class="toast" role="status" data-demo-toast>
+        <span data-demo-toast-text>위 할 일의 체크박스를 눌러 보세요</span>
+        <button class="toast__action" data-demo-undo hidden>실행 취소</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">하루 줄기</h2>
+    <div class="spec__body spec__panel">
+      <div class="flow">
+        <div class="flow__item row--two-line is-past is-complete">
+          <div class="flow__period">낮</div>
+          <div class="flow__node"><span class="checkbox checkbox--done"><svg class="icon icon-check"><use href="#i-check"/></svg></span></div>
+          <div class="row__body"><span class="row__main"><span class="row__title">치과 예약 전화</span><span class="row__context">집안일</span></span></div>
+        </div>
+        <div class="flow__now is-past">
+          <span class="flow__period">지금</span>
+          <div class="flow__node"><span class="flow__now-dot"></span></div>
+          <span class="flow__now-line">17:40</span>
+        </div>
+        <div class="flow__item row--two-line">
+          <div class="flow__period">저녁</div>
+          <div class="flow__node"><span class="status"></span></div>
+          <div class="row__body"><span class="row__main"><span class="row__title">일기 세 줄</span><span class="row__context">자기 전</span></span><div class="row__meta">8일 연속</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">입력창</h2>
+    <div class="spec__body spec__panel">
+      <label class="quick-add"><svg class="icon"><use href="#i-plus"/></svg><input aria-label="할 일이나 습관 추가" placeholder="할 일 추가, 습관은 ~로 시작"></label>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">칩</h2>
+    <div class="spec__body">
+      <div class="chips" role="group" aria-label="시간대" data-demo-chips>
+        <button class="chip" aria-pressed="false" data-band="아침">아침</button>
+        <button class="chip" aria-pressed="false" data-band="낮">낮</button>
+        <button class="chip" aria-pressed="true" data-band="저녁">저녁</button>
+        <button class="chip" aria-pressed="false" data-band="">안 정함</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">팝오버</h2>
+    <div class="spec__body">
+      <div class="popover" role="group" aria-label="시간 정하기">
+        <h3 class="popover__title">시간 정하기</h3>
+        <div class="chips" role="group" aria-label="시간대" data-demo-chips>
+          <button class="chip" aria-pressed="false" data-band="아침">아침</button>
+          <button class="chip" aria-pressed="false" data-band="낮">낮</button>
+          <button class="chip" aria-pressed="true" data-band="저녁">저녁</button>
+          <button class="chip" aria-pressed="false" data-band="">안 정함</button>
+        </div>
+        <div class="time-picker" data-time-picker>
+          <div class="time-picker__head">
+            <span>정확한 시각 <span class="time-picker__value" data-time-value></span></span>
+            <button class="switch" role="switch" aria-checked="false" aria-label="정확한 시각 사용" data-time-switch><span class="switch__thumb"></span></button>
+          </div>
+          <div class="time-wheel" data-time-wheel hidden>
+            <span class="time-wheel__band"></span>
+            <div class="time-wheel__col" data-wheel="period"></div>
+            <div class="time-wheel__col" data-wheel="hour"></div>
+            <div class="time-wheel__col" data-wheel="minute"></div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn">취소</button>
+          <button class="btn btn--primary">저장</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">시트</h2>
+    <div class="spec__body">
+      <div class="sheet" role="group" aria-label="습관 고치기">
+        <span class="sheet__handle"></span>
+        <h3 class="popover__title">습관 고치기</h3>
+        <div class="field"><span class="field__label">이름</span><span>일기 세 줄</span></div>
+        <div class="field"><span class="field__label">상황</span><span>자기 전</span></div>
+        <div class="field"><span class="field__label">반복</span><span>매일</span></div>
+        <div class="sheet__group">
+          <span class="field__label">시간대</span>
+          <div class="chips" role="group" aria-label="시간대" data-demo-chips>
+            <button class="chip" aria-pressed="false" data-band="아침">아침</button>
+            <button class="chip" aria-pressed="false" data-band="낮">낮</button>
+            <button class="chip" aria-pressed="true" data-band="저녁">저녁</button>
+            <button class="chip" aria-pressed="false" data-band="">안 정함</button>
+          </div>
+        </div>
+        <div class="time-picker" data-time-picker>
+          <div class="time-picker__head">
+            <span>정확한 시각 <span class="time-picker__value" data-time-value></span></span>
+            <button class="switch" role="switch" aria-checked="false" aria-label="정확한 시각 사용" data-time-switch><span class="switch__thumb"></span></button>
+          </div>
+          <div class="time-wheel" data-time-wheel hidden>
+            <span class="time-wheel__band"></span>
+            <div class="time-wheel__col" data-wheel="period"></div>
+            <div class="time-wheel__col" data-wheel="hour"></div>
+            <div class="time-wheel__col" data-wheel="minute"></div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn">취소</button>
+          <button class="btn btn--primary">저장</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">사이드바 항목</h2>
+    <div class="spec__body spec__side">
+      <button class="side-item is-active"><svg class="icon icon--sidebar"><use href="#i-today"/></svg><span class="side-item__label">오늘</span><span class="side-item__count">4</span></button>
+      <button class="side-item"><svg class="icon icon--sidebar"><use href="#i-inbox"/></svg><span class="side-item__label">수집함</span><span class="side-item__count">3</span></button>
+      <button class="side-item"><svg class="icon icon--sidebar"><use href="#i-list"/></svg><span class="side-item__label">집안일</span><span class="side-item__count">5</span></button>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">주간 띠</h2>
+    <div class="spec__body">
+      <div class="week week--spec">
+        <span class="day"><span>금</span><span class="day__date">20</span><span class="light light--done"></span></span>
+        <span class="day"><span>토</span><span class="day__date">21</span><span class="light light--partial"></span></span>
+        <span class="day"><span>일</span><span class="day__date">22</span><span class="light light--rest"></span></span>
+        <span class="day is-today"><span>월</span><span class="day__date">23</span><span class="light"></span></span>
+        <span class="day"><span>화</span><span class="day__date">24</span><span class="light"></span></span>
+        <span class="day"><span>수</span><span class="day__date">25</span><span class="light"></span></span>
+        <span class="day"><span>목</span><span class="day__date">26</span><span class="light"></span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">신호등</h2>
+    <div class="spec__body spec__body--inline">
+      <span class="spec__item"><span class="light light--done"></span>달성</span>
+      <span class="spec__item"><span class="light light--partial"></span>일부</span>
+      <span class="spec__item"><span class="light light--missed"></span>미달</span>
+      <span class="spec__item"><span class="light light--rest"></span>쉼</span>
+    </div>
+  </section>
+
+  <section class="spec">
+    <h2 class="spec__name">빈 상태</h2>
+    <div class="spec__body spec__panel">
+      <div class="empty">
+        <svg class="icon icon--empty"><use href="#i-today"/></svg>
+        <p class="empty__title">오늘 할 일이 없습니다</p>
+        <p class="empty__text">할 일이나 습관을 추가하면 하루 줄기에 나타납니다.</p>
+        <button class="btn btn--primary">할 일 추가</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const pickers = new Map(
+  [...document.querySelectorAll("[data-time-picker]")].map((el) => {
+    const root = el.closest(".popover, .sheet");
+    return [root, setupPicker(root)];
+  }),
+);
+
+document.addEventListener("click", (event) => {
+  const chip = event.target.closest("[data-demo-chips] .chip");
+  if (chip) {
+    pressChip(chip.parentElement, chip.dataset.band);
+    pickers.get(chip.closest(".popover, .sheet"))?.setBand(chip.dataset.band);
+  }
+
+  const task = event.target.closest("[data-demo-task]");
+  const undo = event.target.closest("[data-demo-undo]");
+  if (task || undo) {
+    const box = document.querySelector("[data-demo-task]");
+    const done = undo ? false : box.getAttribute("aria-checked") !== "true";
+    box.classList.toggle("checkbox--done", done);
+    box.setAttribute("aria-checked", done);
+    document.querySelector("[data-demo-toast-text]").textContent = done
+      ? "세금 신고 자료 모으기를 완료했습니다"
+      : "완료를 취소했습니다";
+    document.querySelector("[data-demo-undo]").hidden = !done;
+  }
+});
+</script>
+</body>
+</html>

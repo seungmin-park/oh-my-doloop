@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop Mac 집중</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+<p class="sr-only" role="status" data-live></p>
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+<main class="mock-page">
+  <section class="device device--mac device--focus" aria-label="Mac 집중">
+    <nav class="mac-side" aria-label="사이드바" data-mac-sidebar></nav>
+    <div class="focus-main" data-focus></div>
+    <aside class="mac-detail" aria-label="저녁 루틴 순서" data-steps></aside>
+  </section>
+</main>
+
+<script>
+// 실행 화면 시연용 순서. 오늘 화면의 쉼·건너뜀과 별개로 시작 전 상태를 보여 준다.
+const steps = [
+  { id: "r3", minutes: 20, state: "empty" },
+  { id: "r4", minutes: 15, state: "empty" },
+  { id: "r5", minutes: 5, state: "empty" },
+].map((s) => ({ ...s, ...(({ title, context }) => ({ title, context }))(MOCK_ITEMS.find((i) => i.id === s.id)) }));
+let current = 0;
+let left = steps[0].minutes * 60;
+let running = false;
+let timer = null;
+
+const clock = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+const finished = () => current >= steps.length;
+
+function mark(state) {
+  return state === "done"
+    ? `<span class="status status--done">${mockIcon("check", "icon-check")}</span>`
+    : state === "skipped" ? '<span class="status status--skipped"></span>' : '<span class="status"></span>';
+}
+
+function renderSteps() {
+  document.querySelector("[data-steps]").innerHTML = `<h2 class="detail__title">저녁 루틴</h2><p class="detail__sub">${steps.filter((s) => s.state !== "empty").length}/${steps.length} 끝남</p>
+    <ol class="step-list">${steps.map((s, i) => `<li class="step ${i === current ? "is-current" : ""}" ${i === current ? 'aria-current="step"' : ""}>${mark(s.state)}<span class="step__main"><span class="row__title">${s.title}</span><span class="row__context">${s.context}</span></span><span class="row__meta">${s.minutes}분</span></li>`).join("")}</ol>`;
+}
+
+function renderMain() {
+  const root = document.querySelector("[data-focus]");
+  if (finished()) {
+    const done = steps.filter((s) => s.state === "done").length;
+    root.innerHTML = `<div class="empty"><p class="empty__title">저녁 루틴을 마쳤습니다</p><p class="empty__text">${steps.length}개 중 ${done}개를 달성했습니다.</p><button class="btn btn--primary" data-restart>처음부터 다시</button><a class="btn btn--link" href="today.html">오늘로 돌아가기</a></div>`;
+    return;
+  }
+  const step = steps[current];
+  const total = step.minutes * 60;
+  const timeUp = left === 0;
+  root.innerHTML = `<p class="focus-step">${timeUp ? "시간이 끝났습니다. 했는지 골라 주세요." : `${current + 1}번째, ${steps.length}개 중`}</p>
+    <h1 class="large-title">${step.title}</h1>
+    <p class="detail__sub">${step.context}</p>
+    <div class="focus-ring" role="timer" aria-label="남은 시간">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="focus-ring__track" cx="60" cy="60" r="54" pathLength="100"/><circle class="focus-ring__value" data-ring cx="60" cy="60" r="54" pathLength="100" stroke-dasharray="${Math.min(100, (left / total) * 100)} 100"/></svg>
+      <span class="focus-ring__time" data-clock>${clock(left)}</span>
+    </div>
+    <div class="focus-actions">
+      <button class="btn" data-skip>건너뛰기</button>
+      ${timeUp ? '<button class="btn btn--primary btn--wide" data-extend>5분 더</button>' : `<button class="btn btn--primary btn--wide" data-play>${running ? "일시정지" : left < total ? "이어서" : "시작"}</button>`}
+      <button class="btn" data-done>달성하고 다음</button>
+    </div>`;
+}
+
+function render() {
+  renderMain();
+  renderSteps();
+}
+
+function stop() {
+  running = false;
+  clearInterval(timer);
+}
+
+function advance(state) {
+  stop();
+  document.querySelector("[data-live]").textContent = "";
+  steps[current].state = state;
+  current += 1;
+  if (!finished()) left = steps[current].minutes * 60;
+  render();
+}
+
+function tick() {
+  left -= 1;
+  // 시간이 끝나도 달성으로 기록하지 않는다. 사용자가 고른다.
+  if (left <= 0) {
+    left = 0;
+    stop();
+    renderMain();
+    document.querySelector("[data-live]").textContent = `${steps[current].title} 시간이 끝났습니다. 했는지 골라 주세요.`;
+    return;
+  }
+  document.querySelector("[data-clock]").textContent = clock(left);
+  document.querySelector("[data-ring]").setAttribute("stroke-dasharray", `${Math.min(100, (left / (steps[current].minutes * 60)) * 100)} 100`);
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-play]")) {
+    if (running) stop();
+    else {
+      running = true;
+      timer = setInterval(tick, 1000);
+    }
+    renderMain();
+  } else if (e.target.closest("[data-extend]")) {
+    left = 300;
+    document.querySelector("[data-live]").textContent = "";
+    running = true;
+    timer = setInterval(tick, 1000);
+    renderMain();
+  } else if (e.target.closest("[data-done]")) advance("done");
+  else if (e.target.closest("[data-skip]")) advance("skipped");
+  else if (e.target.closest("[data-restart]")) {
+    steps.forEach((s) => { s.state = "empty"; });
+    current = 0;
+    left = steps[0].minutes * 60;
+    render();
+  }
+});
+
+renderMacSidebar("focus");
+render();
+</script>
+</body>
+</html>

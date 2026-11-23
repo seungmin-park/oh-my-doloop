@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop Mac 캘린더</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+<main class="mock-page">
+  <section class="device device--mac device--two" aria-label="Mac 캘린더">
+    <nav class="mac-side" aria-label="사이드바" data-mac-sidebar></nav>
+    <div class="mac-main" data-calendar></div>
+  </section>
+</main>
+
+<script>
+const DAYS = [["월", 23], ["화", 24], ["수", 25], ["목", 26], ["금", 27], ["토", 28], ["일", 29]];
+const SLOTS = 32; // 07:00부터 23:00까지 30분 칸
+const toSlot = (h, m = 0) => (h - 7) * 2 + m / 30;
+const slotTime = (slot) => `${String(7 + Math.floor(slot / 2)).padStart(2, "0")}:${slot % 2 ? "30" : "00"}`;
+const span = (task) => (task.weight === "heavy" ? 2 : 1);
+const minutes = (task) => span(task) * 30;
+
+const routineBlocks = [
+  { id: "r1", slot: toSlot(7, 30) }, { id: "r2", slot: toSlot(8) }, { id: "r3", slot: toSlot(18, 30) },
+  { id: "r4", slot: toSlot(20) }, { id: "r5", slot: toSlot(22) },
+].map((b) => ({ ...b, title: MOCK_ITEMS.find((i) => i.id === b.id).title, n: 1 }));
+
+const fixedFor = (day) => [
+  ...(day < 5 ? [{ title: "회사", slot: toSlot(9), n: 18 }] : []),
+  ...(day === 3 ? [{ title: "저녁 약속", slot: toSlot(20, 30), n: 3 }] : []),
+];
+
+const tasks = [
+  { id: "t2", title: "장보기 목록 정리", weight: "light", day: 0, slot: toSlot(19) },
+  { id: "t1", title: "세금 신고 자료 모으기", weight: "heavy", day: 1, slot: toSlot(19) },
+  { id: "t3", title: "치과 예약 전화", weight: "light", day: 5, slot: toSlot(10) },
+  { id: "c1", title: "발표 자료 초안", weight: "heavy", day: 3, slot: null },
+  { id: "c2", title: "보고서 검토", weight: "heavy", day: 3, slot: null },
+  { id: "c3", title: "회의 준비", weight: "heavy", day: 3, slot: null },
+  { id: "c4", title: "메일 정리", weight: "light", day: 3, slot: null },
+  { id: "t4", title: "여행 숙소 비교", weight: "heavy", day: null, slot: null },
+  { id: "p1", title: "책장 정리", weight: "heavy", day: null, slot: null },
+  { id: "p2", title: "택배 반품", weight: "light", day: null, slot: null },
+  { id: "p3", title: "세차 예약", weight: "light", day: null, slot: null },
+];
+let picked = null;
+
+const load = (day) => tasks.filter((t) => t.day === day).reduce((sum, t) => sum + minutes(t), 0);
+const free = (day) => SLOTS * 30 - [...fixedFor(day), ...routineBlocks].reduce((sum, b) => sum + b.n * 30, 0);
+const hours = (m) => String(m / 60);
+const duration = (m) => [Math.floor(m / 60) ? `${Math.floor(m / 60)}시간` : "", m % 60 ? `${m % 60}분` : ""].filter(Boolean).join(" ");
+const overDay = () => DAYS.findIndex((_, day) => load(day) > free(day));
+
+function busy(day, slot, n, ignore) {
+  const blocks = [...fixedFor(day), ...routineBlocks, ...tasks.filter((t) => t.day === day && t.slot !== null && t !== ignore).map((t) => ({ slot: t.slot, n: span(t) }))];
+  return blocks.some((b) => slot < b.slot + b.n && b.slot < slot + n);
+}
+
+function block(b, kind, label) {
+  return `<div class="cal-block cal-block--${kind}" style="--s:${b.slot};--n:${b.n}" title="${label}"><span class="cal-block__title">${b.title}</span></div>`;
+}
+
+function poolItem(task) {
+  return `<button class="pool-item ${task === picked ? "is-picked" : ""}" draggable="true" data-task="${task.id}" aria-pressed="${task === picked}"><span class="weight ${task.weight === "heavy" ? "weight--heavy" : ""}" role="img" aria-label="${task.weight === "heavy" ? "무거움" : "가벼움"}"></span><span class="pool-item__title">${task.title}</span>${task.day !== null ? `<span class="pool-item__day">${DAYS[task.day][0]}</span>` : ""}</button>`;
+}
+
+function render() {
+  const pool = tasks.filter((t) => t.slot === null);
+  const over = overDay();
+  const banner = over >= 0
+    ? `<div class="notice notice--warn" role="status"><span>${DAYS[over][1]}일 ${DAYS[over][0]}요일은 담은 일이 빈 시간보다 ${duration(load(over) - free(over))} 많습니다.</span><button class="btn btn--text" data-relieve="${over}">가장 가벼운 일을 다음 날로</button></div>`
+    : "";
+  const heads = DAYS.map(([w, d], day) => {
+    const isOver = load(day) > free(day);
+    return `<div class="cal-head ${day === 0 ? "is-today" : ""}"><span class="cal-head__week">${w}</span><span class="day__date">${d}</span><span class="cal-head__load ${isOver ? "is-over" : ""}" aria-label="담은 일 ${duration(load(day)) || "없음"}, 빈 시간 ${duration(free(day))}">${hours(load(day))} / ${hours(free(day))}시간</span></div>`;
+  }).join("");
+  const gutter = Array.from({ length: 8 }, (_, i) => `<span class="cal-hour" style="--s:${i * 4}">${String(7 + i * 2).padStart(2, "0")}</span>`).join("");
+  const columns = DAYS.map((_, day) => `<div class="cal-col" data-day="${day}" role="group" aria-label="${DAYS[day][1]}일">
+    ${fixedFor(day).map((b) => block(b, "fixed", b.title)).join("")}
+    ${routineBlocks.map((b) => block(b, "routine", `${b.title}, 루틴`)).join("")}
+    ${tasks.filter((t) => t.day === day && t.slot !== null).map((t) => block({ ...t, n: span(t) }, "task", `${t.title}, ${slotTime(t.slot)}`)).join("")}
+    ${day === 0 ? `<span class="cal-now" style="--s:${toSlot(17, 40)}" role="img" aria-label="지금 17:40"></span>` : ""}
+  </div>`).join("");
+  document.querySelector("[data-calendar]").innerHTML = `
+    <header class="screen-bar"><h1 class="large-title">11월 23일 – 29일</h1>
+      <div class="screen-bar__actions"><span class="legend"><i class="legend__dot legend__dot--routine"></i>루틴</span><span class="legend"><i class="legend__dot legend__dot--task"></i>할 일</span><span class="legend"><i class="legend__dot legend__dot--fixed"></i>고정 일정</span><span class="legend">날짜 아래: 담은 시간 / 빈 시간</span></div>
+    </header>
+    ${banner}
+    <div class="cal-layout">
+      <aside class="pool" aria-label="시간 안 정한 일" data-pool>
+        <h2 class="section__title">시간 안 정한 일</h2>
+        <p class="pool__hint">끌어서 놓거나, 고른 뒤 빈 칸을 누르세요.</p>
+        ${pool.map(poolItem).join("")}
+      </aside>
+      <div class="cal">
+        <span></span><div class="cal-heads">${heads}</div>
+        <div class="cal-gutter">${gutter}</div><div class="cal-cols">${columns}</div>
+      </div>
+    </div>`;
+}
+
+function place(task, day, slot) {
+  const n = span(task);
+  const start = Math.max(0, Math.min(SLOTS - n, slot));
+  if (busy(day, start, n, task)) {
+    showToast(`${DAYS[day][1]}일 ${slotTime(start)}에는 다른 일이 있습니다`);
+    return;
+  }
+  const before = { day: task.day, slot: task.slot };
+  Object.assign(task, { day, slot: start });
+  picked = null;
+  render();
+  showToast(`${task.title}을 ${DAYS[day][1]}일 ${slotTime(start)}에 놓았습니다`, () => {
+    Object.assign(task, before);
+    render();
+  });
+}
+
+const slotAt = (column, clientY) => {
+  const box = column.getBoundingClientRect();
+  return Math.floor(((clientY - box.top) / box.height) * SLOTS);
+};
+
+document.addEventListener("click", (e) => {
+  const item = e.target.closest("[data-task]");
+  const relieve = e.target.closest("[data-relieve]");
+  const column = e.target.closest(".cal-col");
+  if (item) {
+    const task = tasks.find((t) => t.id === item.dataset.task);
+    picked = picked === task ? null : task;
+    render();
+  } else if (relieve) {
+    const day = Number(relieve.dataset.relieve);
+    const candidates = tasks.filter((t) => t.day === day && t.slot === null).sort((a, b) => span(a) - span(b));
+    const task = candidates[0];
+    if (!task || day === 6) {
+      showToast("옮길 수 있는 일이 없습니다");
+      return;
+    }
+    task.day = day + 1;
+    render();
+    showToast(`${task.title}을 ${DAYS[day + 1][1]}일로 옮겼습니다`, () => {
+      task.day = day;
+      render();
+    });
+  } else if (column && picked && !e.target.closest(".cal-block")) {
+    place(picked, Number(column.dataset.day), slotAt(column, e.clientY));
+  }
+});
+document.addEventListener("dragstart", (e) => {
+  const item = e.target.closest("[data-task]");
+  if (item) e.dataTransfer.setData("text/plain", item.dataset.task);
+});
+document.addEventListener("dragover", (e) => {
+  if (e.target.closest(".cal-col")) e.preventDefault();
+});
+document.addEventListener("drop", (e) => {
+  const column = e.target.closest(".cal-col");
+  const task = tasks.find((t) => t.id === e.dataTransfer.getData("text/plain"));
+  if (!column || !task) return;
+  e.preventDefault();
+  place(task, Number(column.dataset.day), slotAt(column, e.clientY));
+});
+
+renderMacSidebar("calendar");
+render();
+</script>
+</body>
+</html>
