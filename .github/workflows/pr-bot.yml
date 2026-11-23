@@ -13,10 +13,7 @@ concurrency:
 
 jobs:
   pr-bot:
-    if: >-
-      !github.event.pull_request.draft &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.user.type != 'Bot'
+    # 건너뛴 job은 필수 체크를 통과하므로 job을 건너뛰지 않고 아래 단계에서 실패시킨다.
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -35,7 +32,21 @@ jobs:
         repository(owner:$owner,name:$repo){pullRequest(number:$pr){
         reviewThreads(first:100){nodes{isResolved path line
         comments(first:10){nodes{author{login} body}}}}}}}
+      P0_THREADS: >-
+        [.[] | select(.comments.nodes[0].author.login == "github-actions" and
+        (.comments.nodes[0].body | startswith("**[0단계]**")))]
     steps:
+      - name: Reject unreviewable PR
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          if [ "$IS_DRAFT" = true ] || [ "$HEAD_REPO" != "$REPO" ] || [ "$AUTHOR_TYPE" = Bot ]; then
+            echo "::error::draft, 포크, 봇 PR은 자동 리뷰하지 않으므로 이 체크는 실패합니다."
+            exit 1
+          fi
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -69,6 +80,9 @@ jobs:
           # 상한에 걸린 head는 리뷰되지 않았으므로 마지막으로 실제 리뷰한 커밋을 따로 기록한다.
           REVIEWED=$(sed -nE 's/.*reviewed=([0-9a-f]{40}).*/\1/p' <<<"$MARKER")
           REVIEWED=${REVIEWED:-$LAST_SHA}
+          # 지난 리뷰가 새 0단계를 보고했으면 다시 리뷰해 0개가 나와야 통과한다.
+          LAST_P0=$(sed -nE 's/.*p0_reported=([0-9]+).*/\1/p' <<<"$MARKER")
+          LAST_P0=${LAST_P0:-0}
 
           # 닫힌 상한 스레드 하나마다 3라운드를 더 준다.
           RESOLVED_CAPS=$(jq '[.[] | select(.isResolved and (.comments.nodes[0].body | startswith("**[사람 확인 필요]** 리뷰 라운드 상한")))] | length' .pr-bot/threads.json)
@@ -109,7 +123,9 @@ jobs:
           SINCE=
           if [ -n "$REVIEWED" ]; then
             ROUND=${LAST_ROUND:-1}
-            if [ "$REVIEWED" = "$HEAD_SHA" ]; then
+            if [ "$LAST_P0" -gt 0 ]; then
+              [ "$REVIEWED" = "$HEAD_SHA" ] || ROUND=$((ROUND + 1)) # 전체 diff를 다시 본다.
+            elif [ "$REVIEWED" = "$HEAD_SHA" ]; then
               MODE=unchanged
             elif is_ancestor && only_clean_base_merges; then
               MODE=unchanged # base 머지만 있는 push
@@ -147,6 +163,7 @@ jobs:
             echo "mark_round=$MARK_ROUND"
             echo "mark_reviewed=$MARK_REVIEWED"
             echo "base_only=$BASE_ONLY"
+            echo "last_p0=$LAST_P0"
           } >> "$GITHUB_OUTPUT"
 
       - name: Review with primary model
@@ -162,6 +179,7 @@ jobs:
           include_fix_links: "false"
           prompt: |
             `.pr-bot/instructions.md`를 읽고 그 지침대로 리뷰한다.
+            구조화 결과의 개수는 `.pr-bot/threads.json`에 이미 있는 지적을 빼고 이번에 새로 찾은 것만 센다. 이 PR이 만들지 않은 기존 코드의 문제는 개수에 넣지 않고 요약에만 적는다.
             인자: ${{ steps.state.outputs.args }}
           claude_args: >-
             --model ${{ env.PRIMARY_MODEL }}
@@ -193,6 +211,7 @@ jobs:
           prompt: |
             `.pr-bot/instructions.md`를 읽고 그 지침대로 리뷰한다.
             이전 실행이 이미 올린 인라인 지적이 `.pr-bot/threads.json`에 있을 수 있다. 같은 지적을 반복하지 않는다.
+            구조화 결과의 개수는 `.pr-bot/threads.json`에 이미 있는 지적을 빼고 이번에 새로 찾은 것만 센다. 이 PR이 만들지 않은 기존 코드의 문제는 개수에 넣지 않고 요약에만 적는다.
             인자: ${{ steps.state.outputs.args }}
           claude_args: >-
             --model ${{ env.FALLBACK_MODEL }}
@@ -208,13 +227,18 @@ jobs:
           MARK_ROUND: ${{ steps.state.outputs.mark_round }}
           MARK_REVIEWED: ${{ steps.state.outputs.mark_reviewed }}
           BASE_ONLY: ${{ steps.state.outputs.base_only }}
+          LAST_P0: ${{ steps.state.outputs.last_p0 }}
           REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
           COMMENT_ID: ${{ steps.state.outputs.comment_id }}
           PRIMARY_OUTPUT: ${{ steps.primary.outputs.structured_output }}
           FALLBACK_OUTPUT: ${{ steps.fallback.outputs.structured_output }}
         run: |
           set -euo pipefail
-          MARK="<!-- pr-bot:summary head=$HEAD_SHA reviewed=$MARK_REVIEWED round=$MARK_ROUND -->"
+          mark() {
+            printf '<!-- pr-bot:summary head=%s reviewed=%s round=%s p0_reported=%s -->' \
+              "$HEAD_SHA" "$MARK_REVIEWED" "$MARK_ROUND" "$1"
+          }
+          MARK=$(mark "$LAST_P0")
 
           upsert() {
             if [ -n "$COMMENT_ID" ]; then
@@ -235,6 +259,11 @@ jobs:
                 upsert "$(printf '%s\n%s' "$MARK" "$BODY")"
               fi
               echo "PR의 변경이 그대로여서 이전 리뷰를 유지합니다. base와 합친 동작은 이 봇이 확인하지 않습니다."
+              OPEN_P0=$(jq "$P0_THREADS | map(select(.isResolved | not)) | length" .pr-bot/threads.json)
+              if [ "$OPEN_P0" -gt 0 ]; then
+                echo "::error::열린 0단계 스레드가 ${OPEN_P0}개 있습니다. 처리해 닫은 뒤 pr-bot을 다시 실행하세요."
+                exit 1
+              fi
               ;;
             cap)
               OPEN=$(jq '[.[] | select((.isResolved | not) and (.comments.nodes[0].body | startswith("**[사람 확인 필요]** 리뷰 라운드 상한")))] | length' .pr-bot/threads.json)
@@ -265,6 +294,16 @@ jobs:
               if [ "$REFRESH_OUTCOME" = failure ]; then
                 SUMMARY=$(printf '> 스레드 재조회에 실패해 인라인 지적이 중복될 수 있습니다.\n\n%s' "$SUMMARY")
               fi
+              # 요약을 올리기 전에 스레드를 세어, 조회가 실패하면 이 head를 리뷰한 것으로 남기지 않는다.
+              gh api graphql -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$PR" -f query="$THREADS_QUERY" \
+                --jq '.data.repository.pullRequest.reviewThreads.nodes' > .pr-bot/threads.after
+              P0=$(jq -r .p0 <<<"$OUTPUT")
+              OPEN_P0=$(jq "$P0_THREADS | map(select(.isResolved | not)) | length" .pr-bot/threads.after)
+              MARK=$(mark "$P0")
               upsert "$(printf '%s\n## %s\n\n%s\n\n---\n라운드 %s/%s · 모델 %s · head `%s`' "$MARK" "$HEADER" "$SUMMARY" "$ROUND" "$LIMIT" "$MODEL" "${HEAD_SHA:0:7}")"
+              if [ "$P0" -gt 0 ] || [ "$OPEN_P0" -gt 0 ]; then
+                echo "::error::0단계 지적이 남아 있습니다. 고쳐서 push하거나 오탐이면 근거를 답글로 달고, 스레드를 닫은 뒤 pr-bot을 다시 실행하세요."
+                exit 1
+              fi
               ;;
           esac
