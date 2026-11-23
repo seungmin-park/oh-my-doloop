@@ -1,0 +1,138 @@
+# oh-my-doloop 제품 계획
+
+구현 체크리스트는 [tasks.md](tasks.md)에 있다. 조사 자료(`docs/`)는 이 저장소에 올리지 않는다.
+
+## 1. 배경
+
+TickTick(할 일·캘린더)과 마이루틴(루틴)을 따로 쓰면 같은 루틴을 두 앱에 적게 되고, 회고는 종이로 넘어간다. oh-my-doloop은 이 셋을 한 앱으로 합친다. 기능·모델·화면 근거는 `docs/analysis.md`, `docs/uiux.md`에 있다.
+
+대화에서 정한 것:
+
+| 항목 | 결정 |
+|---|---|
+| 누구를 위한 것 | 나 혼자 매일 쓰는 완성품. 판매·배포 안 함 |
+| 기기 | Mac과 iPhone을 처음부터 함께 |
+| 만드는 방식 | 네이티브 SwiftUI, 코드 한 벌 |
+| 비용 | 0원. Apple 개발자 유료 등록(연 $99) 안 함 |
+| 동기화 | ① iCloud Drive 폴더 → ② 무료 서버 → ③ 같은 Wi-Fi 직접, 이 순서로 시험해 되는 첫 번째를 쓴다 |
+| 디자인 | 구현 전에 UI/UX 목업을 먼저 만들고, 모든 화면이 같은 디자인 규칙을 쓴다 |
+| 글꼴 | 프리텐다드(Pretendard, 무료 OFL 라이선스) |
+
+**완성 기준**: 2주 동안 TickTick과 마이루틴을 열지 않고 지낸다.
+
+## 2. 시장 조사 요약
+
+용도는 "좋은 아이디어 찾기"다. 팔 제품이 아니라서 규모·가격은 참고만 한다.
+
+| 앱 | 가격 | 가져올 것 | 사용자 불만(피할 것) |
+|---|---|---|---|
+| TickTick | 연 $49.99 | 할 일·캘린더가 한 앱에서 이어짐 | 캘린더 보기 일부 유료 |
+| Structured | 월 $3.99 | 하루 타임라인, 수집함, 밀린 일 다시 배치 | 반복에서 주말 제외 불가, 여러 개 한꺼번에 못 옮김, 고정 일정 기준점 없음 |
+| Sunsama | 월 $16 | 아침 계획·저녁 마감 절차, 예상 시간 합계로 과부하 경고, 주간 목표 3~5개 | 할 일 관리 기능이 약함 |
+| 루티너리 | 월 ₩4,900 / 평생 ₩70,000 | 루틴을 타이머로 차례대로 실행 | — |
+| 마이루틴 | 무료 + 구독 | 쉼·건너뛰기·모드 | 광고, 구독 유도 |
+
+- **비어 있는 자리**: 루틴이 캘린더에 자동으로 깔리는 것, 못 하는 날을 설계에 넣은 것, 걸리는 시간으로 할 일을 고르는 것을 한 앱에서 하는 곳은 찾지 못했다.
+- **연속 기록**: 설계 글들은 하루 빠지면 끝나는 방식보다 복구 장치(쉼, 유예)가 있는 쪽을 권한다. 쉼·모드·주 n회 목표가 이 역할을 한다.
+- **못 찾은 것**: 각 앱의 실제 다운로드 수와 매출, 마이루틴 구독 가격. 습관 앱 시장 규모는 보고서마다 13억~149억 달러(2026년)로 갈려 쓰지 않는다.
+
+조사에서 새로 넣는 기능 세 가지(내 제안):
+1. **과부하 경고**: 그날 담은 할 일의 무게 합(무거움 1시간, 가벼움 30분)이 캘린더의 빈 시간을 넘으면 알린다.
+2. **하루 마감**: 저녁에 한 일과 쓴 시간을 보여 주고 회고 한 줄을 받는다. 밀린 일은 그 자리에서 내일로 넘기거나 버린다.
+3. **반복 예외 요일**: 반복 설정에서 주말 같은 요일을 뺄 수 있다.
+
+## 3. 무료 계정의 제약
+
+| 항목 | 상태 |
+|---|---|
+| Mac 앱 | 제약 없음 |
+| iPhone 앱 | 7일마다 Xcode로 재설치(데이터는 남음). 명령 하나로 되게 스크립트를 만든다 |
+| iCloud(CloudKit) 동기화, 원격 푸시 | 못 씀 |
+| 기기 안 알림 | 됨 |
+| 위젯, 잠금 화면 타이머 | 자료가 엇갈림. 0단계에서 확인하고, 안 되면 계획에서 뺀다 |
+
+## 4. 구조
+
+```
+oh-my-doloop/
+  Packages/DoloopCore/     Swift 패키지. 화면 없는 부분 전부
+    Model/                 Task, Routine, RoutineVersion, RoutineRecord, Mode …
+    Store/                 SQLite 저장(GRDB), 변경 기록
+    Rules/                 반복 규칙, 신호등, 연속 기록, 과부하 계산
+    Sync/                  SyncTransport 규약 + 구현(폴더 / 서버 / Wi-Fi)
+  design/                  HTML 목업. tokens.css, components.html, 화면별 파일
+  App/Shared/              두 기기가 같이 쓰는 SwiftUI 화면 조각(행, 폼, 팝오버), Theme.swift
+  App/Mac/                 3단 창, 메뉴 막대, 전역 단축키, 명령 팔레트
+  App/iOS/                 탭 화면, 루틴 실행 화면
+  scripts/install-ios.sh   iPhone 재설치
+```
+
+- **저장**: SQLite(GRDB, 오픈소스). SwiftData는 iCloud 동기화 문제가 보고돼 있고 어차피 iCloud를 못 써서 이점이 없다.
+- **모델**: `docs/analysis.md`의 통합 모델 초안을 그대로 출발점으로 쓴다. 루틴은 수명 / 버전(`validAfter`) / 하루 기록 3단으로 둔다.
+- **동기화**: 모든 수정을 기기별 변경 기록(추가만 하는 로그)으로 남기고, 상대 기기의 기록을 읽어 합친다. 같은 항목을 양쪽에서 고쳤으면 필드별로 나중 것이 이긴다. 전송 수단은 `SyncTransport` 뒤에 숨겨서 ①②③을 갈아 끼운다. 나중에 유료 등록을 하면 iCloud 구현을 하나 더하면 된다.
+- **원본과의 거리**: 아이디어와 구조만 참고한다. 두 앱의 코드, 이미지, 문구, 색 값은 쓰지 않는다.
+
+## 5. 디자인 통일 방법
+
+- **목업은 HTML로 만든다.** 브라우저에서 바로 볼 수 있고 Xcode가 없어도 된다. 위치는 `design/`.
+- **값은 한 곳에만 둔다.** `design/tokens.css`에 색(라이트·다크), 글자 크기, 굵기, 간격, 행 높이, 모서리, 상태 색을 정의한다. 출발점은 `docs/uiux.md` 6.6의 크기 체계이고 색은 새로 정한다.
+- **부품을 먼저 만든다.** `design/components.html`에 행(습관·할 일), 상태 버튼, 체크박스, 입력창, 칩, 팝오버, 시트, 사이드바 항목, 알림 띠, 빈 상태를 모아 둔다. 화면 목업은 이 부품만 조합한다. 화면 파일 안에 색·크기 숫자를 직접 쓰지 않는다.
+- **Mac과 iPhone이 같은 토큰을 쓴다.** 배치만 다르고 색, 글자, 행, 상태 표시는 같다.
+- **글꼴은 프리텐다드 하나.** 목업은 웹 폰트로, 앱은 글꼴 파일을 번들에 넣어 쓴다(라이선스 파일 포함). 굵기는 Regular와 Medium 둘만 쓴다.
+- **구현으로 옮길 때** `tokens.css`의 값을 `App/Shared/Theme.swift`에 같은 이름으로 옮기고, SwiftUI 부품도 목업의 부품과 일대일로 만든다. 새 화면은 `Theme` 밖의 값을 쓰지 않는다.
+- **승인 뒤에 구현한다.** 목업을 보고 고칠 곳을 받은 뒤 화면 구현(2단계 이후)에 들어간다.
+
+## 6. 단계
+
+각 단계 끝에 Mac과 iPhone에서 실제로 써 본다.
+
+| 단계 | 내용 | 끝났다는 기준 |
+|---|---|---|
+| M. 목업 | 토큰, 부품, 전 화면 목업(Mac·iPhone, 라이트·다크) | 사용자가 목업을 승인함 |
+| 0. 시험판 (버리는 코드) | Xcode·OS 버전 확인, 무료 계정으로 iPhone 설치. 동기화 ①→②→③ 순서로 시험. 위젯·잠금 화면 타이머 가능 여부 확인 | 쓸 동기화 방식과 위젯 가능 여부가 정해짐 |
+| 1. 뼈대 | 프로젝트, `DoloopCore` 모델·저장·변경 기록, 반복 규칙 | 핵심 규칙 테스트 통과 |
+| 2. 오늘 화면 | 입력창, 습관 행(달성·쉼·건너뜀), 할 일 행, 루틴 묶음, 실행 취소. Mac·iPhone 둘 다 | 하루치 루틴과 할 일을 넣고 체크할 수 있음 |
+| 3. 동기화 | 0단계에서 고른 방식으로 본 구현, 충돌 합치기, 재설치 스크립트 | 한쪽에서 체크하면 다른 쪽에 나타남 |
+| 4. 할 일 갖추기 | 목록·폴더·태그, 반복(예외 요일), 알림, 무게, 상세 칸 | TickTick의 할 일을 옮겨 올 수 있음 |
+| 5. 루틴 갖추기 | 신호등, 연속 기록, 모드(날짜별), 미니/맥스 제목, 월 달력 | 마이루틴의 루틴을 옮겨 올 수 있음 |
+| 6. 캘린더 | 루틴 자동 블록, 날짜 없는 할 일 끌어 놓기, 과부하 경고 | 주간 계획을 이 앱에서 함 |
+| 7. 실행과 돌아보기 | 집중 타이머, 루틴 순서대로 실행, 하루 마감, 통계 | 아침 루틴을 타이머로 돌림 |
+| 8. 마무리 | 명령 팔레트, 전역 빠른 추가, 메뉴 막대, 백업·내보내기, 필터·칸반 | 완성 기준(2주) 시작 |
+
+0단계 결과에 따라 3단계 범위와 위젯 포함 여부가 바뀐다. 0단계가 끝나면 결과를 보고하고 계획을 고친다.
+
+## 7. 검증
+
+- **규칙**: `swift test`로 반복 규칙, 신호등, 연속 기록, 버전(`validAfter`) 전후 통계 불변을 검사한다.
+- **동기화**: 저장소 두 개를 가짜 전송 수단으로 이어, 동시 수정·삭제 후 수정·오프라인 뒤 합치기를 테스트한다.
+- **화면**: 단계마다 Mac 앱을 실행해 확인하고, iPhone은 실제 기기에 설치해 확인한다.
+- **실사용**: 4·5단계 뒤부터 실제 할 일과 루틴을 옮겨 매일 쓴다.
+
+## 8. 아직 모르는 것
+
+- iCloud Drive 폴더 동기화가 무료 계정 iPhone 앱에서 되는지 (0단계)
+- 무료 계정에서 위젯과 잠금 화면 타이머가 되는지 (0단계)
+- TickTick 백업 파일로 할 일을 한꺼번에 가져올 수 있는지 (4단계에서 확인, 안 되면 손으로 옮김)
+
+## 9. 진행 방식
+
+1. [tasks.md](tasks.md)의 단계 순서대로 구현하고, 항목을 끝낼 때마다 체크한다.
+2. 한 단계가 끝나면 그 단계의 "확인" 항목을 실제로 돌려 본 뒤 다음 단계로 간다.
+3. 계획이 바뀌면 이 문서와 tasks.md를 함께 고친다.
+4. 순서: M단계 목업 → 승인 → 1단계 → (Xcode 준비 뒤) 0단계 시험 → 2단계 이후.
+
+Xcode가 필요한 단계는 0단계와 2단계 이후다. 목업과 1단계는 명령줄 도구만으로 한다.
+
+## 출처
+
+- [TickTick pricing (Toolradar)](https://toolradar.com/tools/ticktick/pricing.md)
+- [Best to-do list apps (Android Authority)](https://www.androidauthority.com/best-to-do-list-apps-3563177/)
+- [15 Best Daily Planner Apps in 2026 (ClickUp)](https://clickup.com/blog/daily-planner-apps/)
+- [Structured: Daily Planner (App Store)](https://apps.apple.com/app/id1499198946)
+- [Daily planning and shutdown (Sunsama)](https://www.sunsama.com/features/daily-planning-and-shutdown)
+- [루티너리 (App Store)](https://apps.apple.com/kr/app/id1450486923)
+- [Designing A Streak System (Smashing Magazine)](https://smashingmagazine.com/2026/02/designing-streak-system-ux-psychology/)
+- [Habit tracking apps market (Straits Research)](https://straitsresearch.com/report/habit-tracking-apps-market)
+- [SwiftData CloudKit sync broken on iOS 26 (Apple Developer Forums)](https://developer.apple.com/forums/thread/811675)
+- [Apple Developer Program: Free vs. Paid (Bitrig)](https://bitrig.com/blog/apple-developer-program-free-vs-paid)
+- [Providing access to directories (Apple)](https://developer.apple.com/documentation/uikit/providing-access-to-directories.md)
