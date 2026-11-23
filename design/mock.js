@@ -304,6 +304,8 @@ function createWheel(el, labels, { loop, label, onPick }) {
   return {
     get value() { return value; },
     show(next) {
+      keyTarget = null;
+      clearTimeout(timer);
       value = next;
       announce();
       el.scrollTop = (base + next) * rowHeight();
