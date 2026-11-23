@@ -1,0 +1,5 @@
+# 로컬 전용 (올리지 않음)
+.analysis-runtime/
+docs/
+
+.DS_Store
