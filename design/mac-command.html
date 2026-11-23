@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop Mac 명령 팔레트와 빠른 추가</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+  <div class="segmented" role="group" aria-label="보기">
+    <button data-view="palette">명령 팔레트</button>
+    <button data-view="add">빠른 추가</button>
+  </div>
+</div>
+<main class="mock-page">
+  <section class="device device--mac device--two device--overlay" aria-label="Mac 명령 팔레트와 빠른 추가">
+    <nav class="mac-side" aria-label="사이드바" data-mac-sidebar></nav>
+    <div class="mac-main"><h1 class="large-title">오늘</h1><p class="screen-sub">11월 23일 월요일</p></div>
+    <div class="overlay" data-overlay></div>
+  </section>
+</main>
+
+<script>
+const COMMANDS = [
+  { label: "오늘로 이동", icon: "today", key: "⌘1", href: "today.html" },
+  { label: "캘린더로 이동", icon: "calendar", key: "⌘2", href: "mac-calendar.html" },
+  { label: "저녁 루틴 시작", icon: "focus", key: "⌘3", href: "mac-focus.html" },
+  { label: "통계 보기", icon: "stats", key: "⌘4", href: "mac-stats.html" },
+  { label: "일기 세 줄 고치기", icon: "edit", key: "", href: "mac-edit.html" },
+  { label: "할 일 빠르게 추가", icon: "plus", key: "⌘⇧A", view: "add" },
+  { label: "라이트·다크 바꾸기", icon: "theme", key: "⌘⇧L", theme: true },
+];
+let view = location.hash === "#add" ? "add" : "palette";
+let query = "";
+let active = 0;
+let band = "";
+let addDraft = "";
+
+const matches = () => COMMANDS.filter((c) => c.label.replaceAll(" ", "").includes(query.replaceAll(" ", "")));
+
+function renderList() {
+  const list = matches();
+  active = Math.min(active, Math.max(0, list.length - 1));
+  const input = document.querySelector("[data-query]");
+  input.setAttribute("aria-activedescendant", list.length ? `command-${active}` : "");
+  document.querySelector("[data-commands]").innerHTML = list.length
+    ? list.map((c, i) => `<li class="command ${i === active ? "is-active" : ""}" id="command-${i}" role="option" aria-selected="${i === active}" data-command="${i}">${mockIcon(c.icon, "icon--sidebar")}<span class="menu__label">${c.label}</span><kbd class="menu__key">${c.key}</kbd></li>`).join("")
+    : '<li class="command-empty">맞는 명령이 없습니다. 다른 낱말로 찾아보세요.</li>';
+}
+
+function run(command) {
+  if (!command) return;
+  if (command.href) location.href = command.href;
+  else if (command.view) setView(command.view);
+  else if (command.theme) {
+    setMockTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    showToast("테마를 바꿨습니다");
+  }
+}
+
+function renderPalette() {
+  document.querySelector("[data-overlay]").innerHTML = `<div class="palette" role="dialog" aria-label="명령 팔레트">
+    <label class="palette__search">${mockIcon("search", "icon--sidebar")}<input data-query role="combobox" aria-expanded="true" aria-controls="commands" aria-label="명령 찾기" placeholder="이동하거나 실행할 일을 찾기"></label>
+    <ul class="palette__list" id="commands" role="listbox" aria-label="명령" data-commands></ul>
+  </div>`;
+  const input = document.querySelector("[data-query]");
+  input.value = query;
+  renderList();
+  input.focus();
+}
+
+function renderAdd() {
+  document.querySelector("[data-overlay]").innerHTML = `<form class="quick-window" role="dialog" aria-label="빠른 추가" data-add novalidate>
+    <h2 class="popover__title">빠른 추가</h2>
+    <input class="text-input" data-add-title aria-label="할 일 이름" placeholder="무엇을 할까요?">
+    <p class="form-error" data-add-error hidden>할 일 이름을 입력하세요</p>
+    <div class="chips" role="group" aria-label="시간대" data-demo-chips>
+      ${[["아침", "아침"], ["낮", "낮"], ["저녁", "저녁"], ["", "안 정함"]].map(([value, label]) => `<button type="button" class="chip" aria-pressed="${value === band}" data-band="${value}">${label}</button>`).join("")}
+    </div>
+    <div class="quick-window__foot"><span class="menu__key">수집함에 저장, Esc로 닫기</span><button class="btn btn--primary">추가</button></div>
+  </form>`;
+  const title = document.querySelector("[data-add-title]");
+  title.value = addDraft;
+  title.focus();
+}
+
+function setView(next) {
+  view = next;
+  document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === view));
+  history.replaceState(null, "", `${location.pathname}${location.search}${view === "add" ? "#add" : ""}`);
+  if (view === "add") renderAdd();
+  else renderPalette();
+}
+
+document.addEventListener("input", (e) => {
+  if (e.target.matches("[data-add-title]")) addDraft = e.target.value;
+  if (!e.target.matches("[data-query]")) return;
+  query = e.target.value.trim();
+  active = 0;
+  renderList();
+});
+// 빠른 추가를 닫으면 팔레트로, 팔레트를 닫으면 오늘로 돌아간다.
+function dismiss() {
+  if (view === "add") setView("palette");
+  else if (new URLSearchParams(location.search).has("from")) history.back();
+  else location.href = "today.html";
+}
+
+// 누른 곳과 뗀 곳이 모두 배경일 때만 닫는다.
+let pressedBackdrop = false;
+let releasedBackdrop = false;
+document.addEventListener("pointerdown", (e) => {
+  pressedBackdrop = e.target.matches("[data-overlay]");
+});
+document.addEventListener("pointerup", (e) => {
+  releasedBackdrop = e.target.matches("[data-overlay]");
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    e.preventDefault();
+    dismiss();
+    return;
+  }
+  if (e.target.matches("[data-query]")) {
+    const count = matches().length;
+    if (e.key === "ArrowDown" && count) active = (active + 1) % count;
+    else if (e.key === "ArrowUp" && count) active = (active - 1 + count) % count;
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      run(matches()[active]);
+      return;
+    } else return;
+    e.preventDefault();
+    renderList();
+    document.getElementById(`command-${active}`)?.scrollIntoView({ block: "nearest" });
+  }
+});
+document.addEventListener("click", (e) => {
+  const switcher = e.target.closest("[data-view]");
+  const command = e.target.closest("[data-command]");
+  const chip = e.target.closest("[data-demo-chips] .chip");
+  if (e.target.matches("[data-overlay]")) {
+    if (pressedBackdrop && releasedBackdrop) dismiss();
+  } else if (switcher) setView(switcher.dataset.view);
+  else if (command) run(matches()[Number(command.dataset.command)]);
+  else if (chip) {
+    band = chip.dataset.band;
+    pressChip(chip.parentElement, band);
+  }
+});
+document.addEventListener("submit", (e) => {
+  if (!e.target.matches("[data-add]")) return;
+  e.preventDefault();
+  const input = e.target.querySelector("[data-add-title]");
+  const title = input.value.trim();
+  e.target.querySelector("[data-add-error]").hidden = Boolean(title);
+  input.setAttribute("aria-invalid", !title);
+  if (!title) {
+    input.focus();
+    return;
+  }
+  input.value = "";
+  addDraft = "";
+  input.focus();
+  showToast(`${title}을 ${band ? `${band}에` : "수집함에"} 추가했습니다`);
+});
+
+addEventListener("hashchange", () => setView(location.hash === "#add" ? "add" : "palette"));
+
+renderMacSidebar("command");
+setView(view);
+</script>
+</body>
+</html>

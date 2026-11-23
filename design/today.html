@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop 오늘 화면</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+
+<main class="mock-page">
+  <section class="device device--mac" aria-label="Mac 오늘 화면">
+    <nav class="mac-side" aria-label="사이드바" data-mac-sidebar></nav>
+    <div class="mac-main" data-today></div>
+    <aside class="mac-detail" aria-label="상세" data-detail></aside>
+  </section>
+
+  <section class="device device--phone" aria-label="iPhone 오늘 화면">
+    <div class="phone-main" data-today></div>
+    <nav class="tabbar" aria-label="탭">
+      <button class="tab is-active"><svg class="icon icon--sidebar"><use href="#i-today"/></svg>오늘</button>
+      <button class="tab"><svg class="icon icon--sidebar"><use href="#i-calendar"/></svg>캘린더</button>
+      <button class="tab"><svg class="icon icon--sidebar"><use href="#i-stats"/></svg>통계</button>
+      <button class="tab"><svg class="icon icon--sidebar"><use href="#i-more"/></svg>더 보기</button>
+    </nav>
+  </section>
+</main>
+
+<script>
+const week = [["금", 20], ["토", 21], ["일", 22], ["월", 23, true], ["화", 24], ["수", 25], ["목", 26]];
+const drafts = new Map();
+const items = MOCK_ITEMS;
+let selected = "r5";
+
+const icon = mockIcon;
+const dueText = (d) => (d === 0 ? "오늘" : `D-${d}`);
+
+function control(item) {
+  return item.kind === "routine"
+    ? `<button class="status status--${item.state}" data-toggle="${item.id}" aria-label="${escapeHtml(item.title)}: ${stateName[item.state]}">${icon("check", "icon-check")}${icon("rest", "icon-rest")}</button>`
+    : `<button class="checkbox ${item.state === "done" ? "checkbox--done" : ""}" data-toggle="${item.id}" role="checkbox" aria-checked="${item.state === "done"}" aria-label="${escapeHtml(item.title)}">${icon("check", "icon-check")}</button>`;
+}
+
+function body(item) {
+  const isRoutine = item.kind === "routine";
+  const meta = isRoutine
+    ? `<span>${item.state === "rest" ? "쉬는 날" : item.state === "skipped" ? "건너뜀" : `${streakOf(item)}일 연속`}</span>`
+    : `<span class="weight weight--${item.weight}" role="img" aria-label="${item.weight === "heavy" ? "무거움" : "가벼움"}"></span><span class="badge ${item.due <= 2 && item.state !== "done" ? "badge--soon" : ""}">${dueText(item.due)}</span>`;
+  return `<div class="row__body"><button class="row__main" data-select="${item.id}"><span class="row__title">${escapeHtml(item.title)}</span><span class="row__context">${escapeHtml(isRoutine ? item.context : item.list)}</span></button><div class="row__meta">${meta}</div></div>`;
+}
+
+const rowState = (item) => [item.id === selected ? "is-selected" : "", item.state !== "empty" ? "is-complete" : ""].join(" ");
+
+function flowGroup(name, past) {
+  const list = items.filter((i) => i.group === name);
+  return list.map((item, n) => `<div class="flow__item row--two-line ${past ? "is-past" : ""} ${rowState(item)}"><div class="flow__period">${n === 0 ? name : ""}</div><div class="flow__node">${control(item)}</div>${body(item)}</div>`).join("");
+}
+
+const flowGap = (past) => `<div class="flow__gap ${past ? "is-past" : ""}"><span></span><div class="flow__node"></div><span></span></div>`;
+
+function today() {
+  const routines = items.filter((i) => i.kind === "routine");
+  const done = routines.filter((i) => i.state === "done").length;
+  const days = week.map(([w, d, now]) => [w, d, d < 23 ? dayLight(d) : "", now]).map(([w, d, s, now]) => `<button class="day ${now ? "is-today" : ""}" aria-label="11월 ${d}일 ${w}요일${s ? `, ${monthName[s]}` : ""}"><span>${w}</span><span class="day__date">${d}</span><span class="light ${s ? `light--${s}` : ""}"></span></button>`).join("");
+  const later = items.filter((i) => i.group === "언제든");
+  return `<div class="today-main"><header class="today-head"><div><h1 class="large-title">오늘</h1><div class="screen-sub">11월 23일 월요일, 루틴 ${routines.length}개 중 ${done}개 달성</div></div><div class="week">${days}</div></header>
+    <div class="flow">
+      ${flowGroup("아침", true)}${flowGap(true)}${flowGroup("낮", true)}
+      <div class="flow__now is-past" role="img" aria-label="지금 오후 5시 40분"><span class="flow__period">지금</span><div class="flow__node"><span class="flow__now-dot"></span></div><span class="flow__now-line">17:40</span></div>
+      ${flowGroup("저녁", false)}
+    </div>
+    <section class="flow-later section"><div class="section__head"><h2 class="section__title">시간 안 정한 일</h2></div>${later.map((item) => `<div class="row ${rowState(item)}">${control(item)}${body(item)}</div>`).join("")}</section>
+    <label class="quick-add">${icon("plus")}<input data-add-input aria-label="할 일이나 습관 추가" placeholder="할 일 추가, 습관은 ~로 시작"></label></div>`;
+}
+
+function detail() {
+  const item = items.find((i) => i.id === selected);
+  if (item.kind === "task") {
+    return `<h2 class="detail__title">${escapeHtml(item.title)}</h2><p class="detail__sub">${escapeHtml(item.list)}</p>
+      <div class="field"><span class="field__label">마감</span><span>${dueText(item.due)}</span></div>
+      <div class="field"><span class="field__label">무게</span><span>${item.weight === "heavy" ? "무거움, 1시간 이상" : "가벼움, 30분 이내"}</span></div>
+      <div class="field"><span class="field__label">상태</span><span>${item.state === "done" ? "완료" : "남음"}</span></div>`;
+  }
+  const blanks = '<span class="month__cell month__cell--blank"></span>'.repeat(6);
+  const cells = Array.from({ length: 30 }, (_, n) => {
+    const day = n + 1;
+    const s = dayState(item, day);
+    const now = day === 23;
+    const cls = s ? `month__cell--${s}` : "";
+    const label = s ? `11월 ${day}일 ${monthName[s]}` : `11월 ${day}일`;
+    return `<span class="month__cell ${cls} ${now ? "is-today" : ""}" role="img" aria-label="${label}">${day}</span>`;
+  }).join("");
+  return `<h2 class="detail__title">${escapeHtml(item.title)}</h2><p class="detail__sub">${escapeHtml(item.context)}</p>
+    <div class="field"><span class="field__label">반복</span><span>매일</span></div>
+    <div class="field"><span class="field__label">오늘</span><span>${stateName[item.state]}</span></div>
+    <div class="detail__stat"><strong>${streakOf(item)}일</strong>연속 기록</div>
+    <div class="month">${blanks}${cells}</div>
+    <a class="btn btn--link" href="mac-edit.html">습관 고치기</a>`;
+}
+
+function render() {
+  const focus = document.activeElement;
+  const key = focus?.dataset?.toggle ? ["toggle", focus.dataset.toggle] : focus?.dataset?.select ? ["select", focus.dataset.select] : null;
+  const host = focus?.closest?.("[data-today]");
+  const hosts = [...document.querySelectorAll("[data-today]")];
+  const hostIndex = hosts.indexOf(host);
+  const inputFocused = focus?.matches?.("[data-add-input]");
+  hosts.forEach((el, i) => {
+    el.innerHTML = today();
+    el.querySelector("[data-add-input]").value = drafts.get(i) ?? "";
+  });
+  document.querySelector("[data-detail]").innerHTML = detail();
+  document.querySelector("[data-open-count]").textContent = items.filter((i) => i.state === "empty").length;
+  if (inputFocused && hostIndex >= 0) hosts[hostIndex].querySelector("[data-add-input]").focus();
+  if (key && hostIndex >= 0) hosts[hostIndex].querySelector(`[data-${key[0]}="${key[1]}"]`)?.focus();
+}
+
+const statusItems = () => [
+  { value: "done", label: "달성", key: "1", mark: `<span class="status status--done">${icon("check", "icon-check")}</span>` },
+  { value: "rest", label: "쉼", key: "2", mark: `<span class="status status--rest">${icon("rest", "icon-rest")}</span>` },
+  { value: "skipped", label: "건너뛰기", key: "3", mark: '<span class="status status--skipped"></span>' },
+  { value: "empty", label: "비우기", key: "0", mark: '<span class="status"></span>' },
+];
+const statusDone = { done: "달성했습니다", rest: "쉬는 날로 표시했습니다", skipped: "건너뛰었습니다", empty: "비웠습니다" };
+
+function setStatus(item, state, host) {
+  if (item.state === state) return;
+  const before = item.state;
+  item.state = state;
+  selected = item.id;
+  render();
+  host?.querySelector(`[data-toggle="${item.id}"]`)?.focus();
+  showToast(`${item.title}: ${statusDone[state]}`, () => {
+    item.state = before;
+    render();
+    host?.querySelector(`[data-toggle="${item.id}"]`)?.focus();
+  });
+}
+
+document.addEventListener("contextmenu", (e) => {
+  const target = e.target.closest("[data-toggle], [data-select]");
+  if (!target) return;
+  const id = target.dataset.toggle ?? target.dataset.select;
+  const item = items.find((i) => i.id === id);
+  if (item.kind !== "routine") return;
+  e.preventDefault();
+  const host = target.closest("[data-today]");
+  selected = id;
+  render();
+  const focusRow = () => host.querySelector(`[data-toggle="${id}"]`)?.focus();
+  const box = target.getBoundingClientRect();
+  openMenu({
+    x: e.clientX || box.left,
+    y: e.clientY || box.bottom,
+    label: `${item.title} 상태`,
+    items: statusItems(),
+    current: item.state,
+    onPick: (state) => {
+      if (item.state === state) focusRow();
+      else setStatus(item, state, host);
+    },
+    onClose: focusRow,
+  });
+});
+
+let nextId = 1;
+function addFromInput(input) {
+  const raw = input.value.trim();
+  const isHabit = raw.startsWith("~");
+  const title = raw.replace(/^~\s*/, "");
+  if (!title) return;
+  const hostIndex = [...document.querySelectorAll("[data-today]")].indexOf(input.closest("[data-today]"));
+  const item = isHabit
+    ? { id: `n${nextId}`, kind: "routine", group: "언제든", title, context: "새 습관", state: "empty", streak: 0, startDay: 23 }
+    : { id: `n${nextId}`, kind: "task", group: "언제든", title, weight: "light", due: 7, list: "수집함", state: "empty" };
+  nextId += 1;
+  items.push(item);
+  drafts.set(hostIndex, "");
+  selected = item.id;
+  render();
+  showToast(`${title}을 추가했습니다`, () => {
+    items.splice(items.indexOf(item), 1);
+    if (selected === item.id) selected = "r5";
+    render();
+  });
+}
+
+document.addEventListener("input", (e) => {
+  if (!e.target.matches("[data-add-input]")) return;
+  drafts.set([...document.querySelectorAll("[data-today]")].indexOf(e.target.closest("[data-today]")), e.target.value);
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.matches("[data-add-input]") && !e.isComposing) {
+    e.preventDefault();
+    addFromInput(e.target);
+    return;
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, [role=menu]")) return;
+  const state = { 1: "done", 2: "rest", 3: "skipped", 0: "empty" }[e.key];
+  const item = items.find((i) => i.id === selected);
+  if (!state || item?.kind !== "routine") return;
+  e.preventDefault();
+  setStatus(item, state, e.target.closest("[data-today]"));
+});
+
+document.addEventListener("click", (e) => {
+  const toggle = e.target.closest("[data-toggle]");
+  const select = e.target.closest("[data-select]");
+  if (toggle) {
+    const item = items.find((i) => i.id === toggle.dataset.toggle);
+    if (item.kind === "routine") setStatus(item, item.state === "empty" ? "done" : "empty", toggle.closest("[data-today]"));
+    else {
+      item.state = item.state === "empty" ? "done" : "empty";
+      selected = item.id;
+      render();
+    }
+  } else if (select) {
+    selected = select.dataset.select;
+    render();
+  }
+});
+
+renderMacSidebar("today");
+render();
+</script>
+</body>
+</html>
