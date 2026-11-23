@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop iPhone 루틴 실행</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+<script src="phone.js"></script>
+<script src="run.js"></script>
+<p class="sr-only" role="status" data-live></p>
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+<main class="mock-page">
+  <section class="device device--phone device--phone-full" aria-label="iPhone 루틴 실행">
+    <header class="run-head">
+      <a class="run-close" href="today.html?device=phone" aria-label="닫고 오늘로 돌아가기"><svg class="icon icon--sidebar"><use href="#i-close"/></svg></a>
+      <span class="run-head__title">저녁 루틴</span>
+      <ol class="run-strip" aria-label="진행 순서" data-step-strip></ol>
+    </header>
+    <div class="focus-main" data-focus></div>
+  </section>
+</main>
+
+<script>
+// 오늘 쉼이나 건너뜀으로 표시한 습관은 다시 묻지 않고 넘어간다.
+const evening = MOCK_ITEMS
+  .filter((i) => i.kind === "routine" && i.group === "저녁")
+  .map(({ id, title, context, state, minutes }) => ({ id, title, context, state, minutes: minutes ?? 10 }));
+
+initPhone(null);
+startRun(evening, {
+  homeHref: PHONE_TODAY,
+  onRecord: (step, state) => {
+    MOCK_ITEMS.find((i) => i.id === step.id).state = state;
+    savePhoneState();
+  },
+});
+</script>
+</body>
+</html>

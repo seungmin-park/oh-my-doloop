@@ -29,7 +29,7 @@
 
 <script>
 const COMMANDS = [
-  { label: "오늘로 이동", icon: "today", key: "⌘1", href: "today.html" },
+  { label: "오늘로 이동", icon: "today", key: "⌘1", href: MAC_TODAY },
   { label: "캘린더로 이동", icon: "calendar", key: "⌘2", href: "mac-calendar.html" },
   { label: "저녁 루틴 시작", icon: "focus", key: "⌘3", href: "mac-focus.html" },
   { label: "통계 보기", icon: "stats", key: "⌘4", href: "mac-stats.html" },
@@ -110,7 +110,7 @@ document.addEventListener("input", (e) => {
 function dismiss() {
   if (view === "add") setView("palette");
   else if (new URLSearchParams(location.search).has("from") && history.length > 1) history.back();
-  else location.href = "today.html";
+  else location.href = MAC_TODAY;
 }
 
 // 누른 곳과 뗀 곳이 모두 배경일 때만 닫는다.

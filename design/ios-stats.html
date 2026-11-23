@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop iPhone 통계</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+<script src="phone.js"></script>
+<script src="stats.js"></script>
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+<main class="mock-page">
+  <section class="device device--phone" aria-label="iPhone 통계">
+    <div class="phone-main" data-stats></div>
+    <nav class="tabbar" aria-label="탭" data-phone-tabs></nav>
+  </section>
+</main>
+
+<script>
+initPhone("stats");
+renderStats(document.querySelector("[data-stats]"));
+</script>
+</body>
+</html>
