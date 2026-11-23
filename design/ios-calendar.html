@@ -67,7 +67,8 @@ function syncDeferred() {
       delete source.deferred;
       source.wasDeferred = true;
     } else if (task.day !== 0 && source.wasDeferred) {
-      source.deferred = true;
+      // 이미 끝낸 일은 다른 날로 옮겨도 오늘 한 일로 남긴다.
+      if (source.state === "empty") source.deferred = true;
       delete source.wasDeferred;
     }
   });
