@@ -161,7 +161,15 @@ document.addEventListener("click", (e) => {
     picked = null;
     render();
   } else if (relieve) relieveDay(Number(relieve.dataset.relieve));
-  else if (column && picked) place(picked, Number(column.dataset.day), slotAt(column, e.clientY));
+  else if (column && picked) {
+    const target = Number(column.dataset.day);
+    // 마친 날로는 넘긴 일을 되돌리지 않는다. 되돌리려면 하루 마감을 다시 연다.
+    if (target === 0 && phoneClosing.closed && MOCK_ITEMS.find((item) => item.id === picked.id)?.deferred) {
+      showToast("오늘은 이미 마쳤습니다. 다른 날에 놓거나 하루 마감을 다시 여세요");
+      return;
+    }
+    place(picked, target, slotAt(column, e.clientY));
+  }
 });
 
 initPhone("calendar");

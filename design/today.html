@@ -220,6 +220,18 @@ document.addEventListener("click", (e) => {
   }
 }, true);
 
+// 시트를 닫으면 주소의 edit도 지워서 새로고침할 때 다시 열리지 않게 한다.
+function clearEditParam() {
+  const url = new URL(location.href);
+  if (!url.searchParams.has("edit")) return;
+  url.searchParams.delete("edit");
+  try {
+    history.replaceState(null, "", url);
+  } catch {
+    // 주소를 못 바꾸는 환경에서는 시트만 닫는다.
+  }
+}
+
 function openItemSheet(id) {
   const item = items.find((i) => i.id === id && isOnToday(i));
   if (!item) return;
@@ -228,7 +240,10 @@ function openItemSheet(id) {
   const device = document.querySelector(".device--phone");
   const focusRow = () => device.querySelector(`.phone-main [data-select="${id}"]`)?.focus();
   openEditSheet(device, item, {
-    onClose: focusRow,
+    onClose: () => {
+      clearEditParam();
+      focusRow();
+    },
     onSave: (values) => {
       if (item.kind === "routine") {
         showToast("저장했습니다. 내일부터 적용됩니다");
@@ -312,7 +327,7 @@ renderMacSidebar("today");
 initPhone("today");
 render();
 const editId = new URLSearchParams(location.search).get("edit");
-if (editId) openItemSheet(editId);
+if (editId && document.documentElement.dataset.device !== "mac") openItemSheet(editId);
 </script>
 </body>
 </html>
