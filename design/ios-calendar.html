@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop iPhone 캘린더</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+<script src="phone.js"></script>
+<script src="calendar.js"></script>
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+<main class="mock-page">
+  <section class="device device--phone" aria-label="iPhone 캘린더">
+    <div class="phone-main" data-calendar></div>
+    <nav class="tabbar" aria-label="탭" data-phone-tabs></nav>
+  </section>
+</main>
+
+<script>
+let dayIndex = 0;
+const root = document.querySelector("[data-calendar]");
+const device = document.querySelector(".device--phone");
+
+// 오늘과 마감에서 바꾼 할 일을 시간표에 반영하고, 놓은 자리를 불러온다.
+function hydrateCalendar() {
+  for (let i = tasks.length - 1; i >= 0; i -= 1) {
+    const source = MOCK_ITEMS.find((item) => item.id === tasks[i].id);
+    if (source?.dropped) tasks.splice(i, 1);
+    else if (source) Object.assign(tasks[i], { title: source.title, weight: source.weight });
+  }
+  MOCK_ITEMS
+    .filter((item) => item.kind === "task" && !item.dropped && !tasks.some((t) => t.id === item.id))
+    .forEach((item) => tasks.push({ id: item.id, title: item.title, weight: item.weight, day: null, slot: null }));
+  tasks.forEach((task) => {
+    const saved = phoneCalendar[task.id];
+    if (saved) Object.assign(task, { day: saved.day, slot: saved.slot });
+    else if (MOCK_ITEMS.find((item) => item.id === task.id)?.deferred && (task.day === 0 || task.day === null)) Object.assign(task, { day: 1, slot: null });
+  });
+  // 다른 화면에서 무게를 바꿔 칸이 겹치면 그 일을 시간 미정으로 돌린다.
+  // 무게가 바뀐 일을 먼저 검사해서 건드리지 않은 일이 자리를 잃지 않게 한다.
+  const changed = (task) => phoneCalendar[task.id]?.weight && phoneCalendar[task.id].weight !== task.weight;
+  const moved = [];
+  [...tasks.filter(changed), ...tasks.filter((task) => !changed(task))].forEach((task) => {
+    if (task.day === null || task.slot === null) return;
+    if (task.slot + span(task) > SLOTS || busy(task.day, task.slot, span(task), task)) {
+      task.slot = null;
+      moved.push(task.title);
+    }
+  });
+  return moved;
+}
+
+// 내일로 넘긴 일을 오늘 칸에 다시 놓으면 오늘 할 일로 돌아온다. 실행 취소하면 다시 넘긴 상태가 된다.
+function syncDeferred() {
+  tasks.forEach((task) => {
+    const source = MOCK_ITEMS.find((item) => item.id === task.id);
+    if (!source) return;
+    if (task.day === 0 && source.deferred) {
+      delete source.deferred;
+      source.wasDeferred = true;
+    } else if (task.day !== 0 && source.wasDeferred) {
+      source.deferred = true;
+      delete source.wasDeferred;
+    }
+  });
+}
+
+function block(b, kind, label) {
+  return `<div class="cal-block cal-block--${kind}" style="--s:${b.slot};--n:${b.n}" title="${escapeHtml(label)}"><span class="cal-block__title">${escapeHtml(b.title)}</span></div>`;
+}
+
+function render() {
+  syncDeferred();
+  tasks.forEach((task) => { phoneCalendar[task.id] = { day: task.day, slot: task.slot, weight: task.weight }; });
+  savePhoneState();
+  const day = dayIndex;
+  const over = load(day) > free(day);
+  const pool = tasks.filter((t) => t.slot === null);
+  const strip = DAYS.map(([w, d], i) => {
+    const dayOver = load(i) > free(i);
+    return `<button class="day ${i === 0 ? "is-today" : ""} ${i === day ? "is-selected" : ""}" data-day-pick="${i}" aria-pressed="${i === day}" aria-label="11월 ${d}일 ${w}요일${dayOver ? ", 일이 넘침" : ""}"><span>${w}</span><span class="day__date">${d}</span><span class="light ${dayOver ? "light--missed" : ""}"></span></button>`;
+  }).join("");
+  const gutter = Array.from({ length: 8 }, (_, i) => `<span class="cal-hour" style="--s:${i * 4}">${String(7 + i * 2).padStart(2, "0")}</span>`).join("");
+  const column = `<div class="cal-col" data-day="${day}" role="group" aria-label="${DAYS[day][1]}일 시간표">
+    ${fixedFor(day).map((b) => block(b, "fixed", b.title)).join("")}
+    ${routineBlocks.map((b) => block(b, "routine", `${b.title}, 루틴`)).join("")}
+    ${tasks.filter((t) => t.day === day && t.slot !== null).map((t) => block({ ...t, n: span(t) }, "task", `${t.title}, ${slotTime(t.slot)}`)).join("")}
+    ${day === 0 ? `<span class="cal-now" style="--s:${toSlot(17, 40)}" role="img" aria-label="지금 17:40"></span>` : ""}
+  </div>`;
+  const bar = picked
+    ? `<div class="phone-bar phone-bar--picking" role="status"><span class="phone-bar__text">${escapeHtml(picked.title)}: 놓을 빈 칸을 누르세요</span><button class="btn" data-cancel-pick>취소</button></div>`
+    : `<div class="phone-bar"><button class="btn btn--bar" data-open-pool aria-haspopup="dialog">시간 안 정한 일 ${pool.length}개</button></div>`;
+  const scrollTop = root.querySelector("[data-cal-scroll]")?.scrollTop ?? 0;
+  root.innerHTML = `<div class="phone-screen phone-screen--fixed">
+    <header class="screen-bar screen-bar--phone"><h1 class="large-title">${DAYS[day][1]}일 ${DAYS[day][0]}요일</h1><p class="screen-sub">담은 일 ${duration(load(day)) || "없음"}, 빈 시간 ${duration(free(day))}</p></header>
+    <div class="week">${strip}</div>
+    ${over ? `<div class="notice notice--warn" role="status"><span>담은 일이 빈 시간보다 ${duration(load(day) - free(day))} 많습니다.</span><button class="btn btn--text" data-relieve="${day}">가장 가벼운 일을 다음 날로</button></div>` : ""}
+    <div class="cal-scroll" data-cal-scroll><div class="cal cal--day"><div class="cal-gutter">${gutter}</div><div class="cal-cols">${column}</div></div></div>
+    ${bar}
+  </div>`;
+  root.querySelector("[data-cal-scroll]").scrollTop = scrollTop;
+}
+
+function openPool() {
+  const pool = tasks.filter((t) => t.slot === null);
+  const layer = document.createElement("div");
+  layer.className = "sheet-layer";
+  layer.innerHTML = `<div class="sheet sheet--form" role="dialog" aria-modal="true" aria-label="시간 안 정한 일" tabindex="-1">
+    <span class="sheet__handle"></span>
+    <header class="sheet-head"><span></span><h2 class="popover__title">시간 안 정한 일</h2><button class="btn" data-pool-close>닫기</button></header>
+    ${pool.length ? `<p class="pool__hint">고른 뒤 시간표의 빈 칸을 누르세요.</p>${pool.map((t) => `<button class="pool-item" data-task="${t.id}"><span class="weight ${t.weight === "heavy" ? "weight--heavy" : ""}" role="img" aria-label="${t.weight === "heavy" ? "무거움" : "가벼움"}"></span><span class="pool-item__title">${escapeHtml(t.title)}</span>${t.day !== null ? `<span class="pool-item__day">${DAYS[t.day][0]}</span>` : ""}</button>`).join("")}` : '<p class="empty__text">모든 일에 시간을 정했습니다.</p>'}
+  </div>`;
+  const behind = [...device.children];
+  behind.forEach((el) => { el.inert = true; });
+  device.append(layer);
+  const close = () => {
+    document.removeEventListener("keydown", onKey);
+    layer.remove();
+    behind.forEach((el) => { el.inert = false; });
+  };
+  function onKey(e) {
+    if (e.key === "Escape") {
+      close();
+      root.querySelector("[data-open-pool]")?.focus();
+    }
+  }
+  document.addEventListener("keydown", onKey);
+  layer.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-task]");
+    if (item) {
+      picked = tasks.find((t) => t.id === item.dataset.task);
+      close();
+      render();
+      root.querySelector("[data-cancel-pick]")?.focus();
+    } else if (e.target === layer || e.target.closest("[data-pool-close]")) {
+      close();
+      root.querySelector("[data-open-pool]")?.focus();
+    }
+  });
+  layer.querySelector("[role=dialog]").focus();
+}
+
+document.addEventListener("click", (e) => {
+  const dayButton = e.target.closest("[data-day-pick]");
+  const relieve = e.target.closest("[data-relieve]");
+  const column = e.target.closest(".cal-col");
+  if (dayButton) {
+    dayIndex = Number(dayButton.dataset.dayPick);
+    render();
+    root.querySelector(`[data-day-pick="${dayIndex}"]`).focus();
+  } else if (e.target.closest("[data-open-pool]")) openPool();
+  else if (e.target.closest("[data-cancel-pick]")) {
+    picked = null;
+    render();
+  } else if (relieve) relieveDay(Number(relieve.dataset.relieve));
+  else if (column && picked) place(picked, Number(column.dataset.day), slotAt(column, e.clientY));
+});
+
+initPhone("calendar");
+const movedTasks = hydrateCalendar();
+render();
+if (movedTasks.length) showToast(`시간이 겹친 일을 시간 미정으로 옮겼습니다: ${movedTasks.join(", ")}`);
+const nowLine = root.querySelector(".cal-now");
+if (nowLine) {
+  const scroller = root.querySelector("[data-cal-scroll]");
+  scroller.scrollTop = Math.max(0, nowLine.getBoundingClientRect().top - scroller.getBoundingClientRect().top - scroller.clientHeight / 2);
+}
+</script>
+</body>
+</html>

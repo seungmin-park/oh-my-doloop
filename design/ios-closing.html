@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop iPhone 하루 마감</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+<script src="phone.js"></script>
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+<main class="mock-page">
+  <section class="device device--phone" aria-label="iPhone 하루 마감">
+    <div class="phone-main" data-closing></div>
+    <nav class="tabbar" aria-label="탭" data-phone-tabs></nav>
+  </section>
+</main>
+
+<script>
+const root = document.querySelector("[data-closing]");
+let showError = false;
+
+const onToday = () => MOCK_ITEMS.filter(isOnToday);
+const openTasks = () => onToday().filter((i) => i.kind === "task" && i.state === "empty");
+const openHabits = () => onToday().filter((i) => i.kind === "routine" && i.state === "empty");
+const itemMinutes = (i) => (i.kind === "task" ? (i.weight === "heavy" ? 60 : 30) : i.minutes ?? 0);
+
+function statsLine() {
+  const list = onToday();
+  const routines = list.filter((i) => i.kind === "routine");
+  const tasks = list.filter((i) => i.kind === "task");
+  const doneCount = (group) => group.filter((i) => i.state === "done").length;
+  const spent = list.filter((i) => i.state === "done").reduce((sum, i) => sum + itemMinutes(i), 0);
+  return `<dl class="stat-line stat-line--three">
+    <div><dt>루틴</dt><dd data-stat-routine>${doneCount(routines)}/${routines.length}</dd></div>
+    <div><dt>할 일</dt><dd data-stat-task>${doneCount(tasks)}/${tasks.length}</dd></div>
+    <div><dt>쓴 시간</dt><dd data-stat-time>${durationText(spent) || "0분"}</dd></div>
+  </dl>`;
+}
+
+function render() {
+  savePhoneState();
+  if (phoneClosing.closed) {
+    root.innerHTML = `<div class="phone-screen close-done">
+      <h1 class="large-title">오늘을 마쳤습니다</h1>
+      <p class="screen-sub">11월 23일 월요일</p>
+      ${statsLine()}
+      ${phoneClosing.note ? `<blockquote class="close-note">${escapeHtml(phoneClosing.note)}</blockquote>` : ""}
+      <div class="close-actions"><button class="btn" data-reopen>다시 열기</button><a class="btn btn--primary btn--anchor" href="${PHONE_TODAY}">오늘로 돌아가기</a></div>
+    </div>`;
+    return;
+  }
+  const tasks = openTasks();
+  const habits = openHabits();
+  const done = onToday().filter((i) => i.state === "done");
+  root.innerHTML = `<div class="phone-screen">
+    <header class="screen-bar screen-bar--phone"><h1 class="large-title">하루 마감</h1><p class="screen-sub">11월 23일 월요일</p></header>
+    ${statsLine()}
+    ${tasks.length ? `<section class="section"><div class="section__head"><h2 class="section__title">남은 일</h2><button class="btn btn--text" data-defer-all>모두 내일로</button></div>
+      ${tasks.map((t) => `<div class="close-row"><span class="weight ${t.weight === "heavy" ? "weight--heavy" : ""}" role="img" aria-label="${t.weight === "heavy" ? "무거움" : "가벼움"}"></span><span class="close-row__title">${escapeHtml(t.title)}</span><button class="btn" data-defer="${t.id}" aria-label="${escapeHtml(t.title)} 내일로">내일로</button><button class="btn" data-drop="${t.id}" aria-label="${escapeHtml(t.title)} 버리기">버리기</button></div>`).join("")}</section>` : ""}
+    ${habits.length ? `<section class="section"><div class="section__head"><h2 class="section__title">남은 습관</h2><span class="section__count">고르지 않으면 미달</span></div>
+      ${habits.map((h) => `<div class="close-row"><span class="status"></span><span class="close-row__title">${escapeHtml(h.title)}</span><button class="btn" data-habit="${h.id}" data-state="done" aria-label="${escapeHtml(h.title)} 달성">달성</button><button class="btn" data-habit="${h.id}" data-state="rest" aria-label="${escapeHtml(h.title)} 쉼">쉼</button><button class="btn" data-habit="${h.id}" data-state="skipped" aria-label="${escapeHtml(h.title)} 건너뛰기">건너뜀</button></div>`).join("")}</section>` : ""}
+    ${done.length ? `<section class="section"><div class="section__head"><h2 class="section__title">한 일</h2><span class="section__count">${done.length}개</span></div>
+      ${done.map((i) => `<div class="close-row close-row--done">${i.kind === "task" ? `<span class="checkbox checkbox--done">${mockIcon("check", "icon-check")}</span>` : `<span class="status status--done">${mockIcon("check", "icon-check")}</span>`}<span class="close-row__title">${escapeHtml(i.title)}</span><span class="row__meta">${durationText(itemMinutes(i))}</span></div>`).join("")}</section>` : ""}
+    <label class="close-field"><span class="section__title">오늘 한 줄 (선택)</span>
+      <textarea class="text-area" data-note rows="2" maxlength="100" placeholder="오늘 실제로 한 일을 한 줄로 남겨 보세요">${escapeHtml(phoneClosing.note)}</textarea></label>
+    ${showError && tasks.length ? `<p class="form-error" role="alert">남은 일 ${tasks.length}개를 내일로 넘기거나 버려 주세요</p>` : ""}
+    <button class="btn btn--primary btn--bar" data-finish>하루 마치기</button>
+    <p class="form-foot__note">새벽 4시 전까지는 오늘 기록으로 남습니다.</p>
+  </div>`;
+}
+
+// 내일로 넘긴 일은 시간표의 오늘 자리에서 빠지고, 실행 취소하면 돌아온다.
+function deferItems(list, message) {
+  const placements = list.map((item) => [item, phoneCalendar[item.id]]);
+  change(() => list.forEach((item) => {
+    item.deferred = true;
+    // 이미 미래 날짜에 놓은 일은 그 자리를 지킨다.
+    const placement = phoneCalendar[item.id];
+    if (placement && (placement.day === null || placement.day === 0)) phoneCalendar[item.id] = { day: 1, slot: null };
+  }), message, () => placements.forEach(([item, placement]) => {
+    delete item.deferred;
+    if (placement) phoneCalendar[item.id] = placement;
+    else delete phoneCalendar[item.id];
+  }));
+}
+
+function change(apply, message, undo) {
+  apply();
+  render();
+  showToast(message, () => {
+    undo();
+    render();
+  });
+}
+
+document.addEventListener("input", (e) => {
+  if (!e.target.matches("[data-note]")) return;
+  phoneClosing.note = e.target.value;
+  savePhoneState();
+});
+
+document.addEventListener("click", (e) => {
+  const find = (id) => MOCK_ITEMS.find((i) => i.id === id);
+  const defer = e.target.closest("[data-defer]");
+  const drop = e.target.closest("[data-drop]");
+  const habit = e.target.closest("[data-habit]");
+  if (defer) {
+    const item = find(defer.dataset.defer);
+    deferItems([item], `${item.title}을 내일로 넘겼습니다`);
+  } else if (drop) {
+    const item = find(drop.dataset.drop);
+    change(() => { item.dropped = true; }, `${item.title}을 버렸습니다`, () => { delete item.dropped; });
+  } else if (e.target.closest("[data-defer-all]")) {
+    const list = openTasks();
+    deferItems(list, `남은 일 ${list.length}개를 내일로 넘겼습니다`);
+  } else if (habit) {
+    const item = find(habit.dataset.habit);
+    const state = habit.dataset.state;
+    change(() => { item.state = state; }, `${item.title}: ${stateName[state]}`, () => { item.state = "empty"; });
+  } else if (e.target.closest("[data-finish]")) {
+    if (openTasks().length) {
+      showError = true;
+      render();
+      root.querySelector("[data-defer]")?.focus();
+      return;
+    }
+    showError = false;
+    dismissToast(); // 마친 뒤에는 이전 동작을 되돌릴 수 없게 한다.
+    phoneClosing.closed = true;
+    mockDayClosed = true;
+    render();
+    root.scrollTop = 0;
+  } else if (e.target.closest("[data-reopen]")) {
+    phoneClosing.closed = false;
+    mockDayClosed = false;
+    MOCK_ITEMS.forEach((item) => { delete item.addedAfterClose; });
+    render();
+  }
+});
+
+initPhone("closing");
+render();
+</script>
+</body>
+</html>

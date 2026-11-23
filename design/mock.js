@@ -15,7 +15,9 @@ const MOCK_ICONS = `
   <symbol id="i-edit" viewBox="0 0 20 20"><path d="m4 13-.5 3.5L7 16l9-9-3-3zM11.5 5.5l3 3"/></symbol>
   <symbol id="i-theme" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.5"/><path d="M10 3.5v13"/></symbol>
   <symbol id="i-left" viewBox="0 0 16 16"><path d="m10 3-5 5 5 5"/></symbol>
-  <symbol id="i-right" viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></symbol>`;
+  <symbol id="i-right" viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 20 20"><path d="M16 12.2A6.5 6.5 0 0 1 7.8 4a6.5 6.5 0 1 0 8.2 8.2z"/></symbol>
+  <symbol id="i-close" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15"/></symbol>`;
 
 document.body.insertAdjacentHTML(
   "afterbegin",
@@ -52,35 +54,63 @@ document.addEventListener("click", (event) => {
   if (button) setMockTheme(button.dataset.themeSet);
 });
 
+// 화면 모음의 미리보기는 embed로 열린다. 테마를 저장하지 않고 부모 화면을 따른다.
+const mockParams = new URLSearchParams(location.search);
+const MOCK_EMBED = mockParams.has("embed");
+if (MOCK_EMBED) {
+  document.documentElement.dataset.embed = "";
+  // 미리보기 안의 자동 포커스가 화면 모음의 포커스를 가져가지 않게 한다.
+  HTMLElement.prototype.focus = () => {};
+}
+addEventListener("message", (event) => {
+  if (!MOCK_EMBED || event.source !== parent) return;
+  const theme = event.data?.doloopTheme;
+  if (theme === "dark" || theme === "light") applyMockTheme(theme);
+});
+const paramTheme = ["dark", "light"].includes(mockParams.get("theme")) ? mockParams.get("theme") : null;
 const hashTheme = ["#dark", "#light"].includes(location.hash) ? location.hash.slice(1) : null;
-const initialTheme = hashTheme ?? (savedMockTheme() === "dark" ? "dark" : "light");
+const initialTheme = paramTheme ?? hashTheme ?? (savedMockTheme() === "dark" ? "dark" : "light");
 applyMockTheme(initialTheme);
 // 이 스크립트는 버튼보다 먼저 실행되므로 문서가 준비되면 눌림 표시를 다시 맞춘다.
 document.addEventListener("DOMContentLoaded", () => applyMockTheme(document.documentElement.dataset.theme));
 
 // 목업 공용 데이터. 화면마다 같은 습관과 할 일을 보여 준다.
 const MOCK_ITEMS = [
-  { id: "r1", kind: "routine", group: "아침", title: "비타민 먹기", context: "커피 내리기 전", state: "done", streak: 11 },
-  { id: "r2", kind: "routine", group: "아침", title: "책 10쪽 읽기", context: "출근길에", state: "done", streak: 2 },
-  { id: "r3", kind: "routine", group: "저녁", title: "저녁 달리기", context: "퇴근 후", state: "rest", streak: 6 },
-  { id: "r4", kind: "routine", group: "저녁", title: "영어 듣기", context: "설거지하며", state: "skipped", streak: 2 },
-  { id: "r5", kind: "routine", group: "저녁", title: "일기 세 줄", context: "자기 전", state: "empty", streak: 8 },
+  { id: "r1", kind: "routine", group: "아침", title: "비타민 먹기", context: "커피 내리기 전", state: "done", streak: 11, minutes: 5 },
+  { id: "r2", kind: "routine", group: "아침", title: "책 10쪽 읽기", context: "출근길에", state: "done", streak: 2, minutes: 20 },
+  { id: "r3", kind: "routine", group: "저녁", title: "저녁 달리기", context: "퇴근 후", state: "rest", streak: 6, minutes: 20 },
+  { id: "r4", kind: "routine", group: "저녁", title: "영어 듣기", context: "설거지하며", state: "skipped", streak: 2, minutes: 15 },
+  { id: "r5", kind: "routine", group: "저녁", title: "일기 세 줄", context: "자기 전", state: "empty", streak: 8, minutes: 5, mini: "한 줄 쓰기", maxi: "한 쪽 쓰기" },
   { id: "t1", kind: "task", group: "낮", title: "세금 신고 자료 모으기", weight: "heavy", due: 1, list: "집안일", state: "empty" },
   { id: "t2", kind: "task", group: "낮", title: "장보기 목록 정리", weight: "light", due: 0, list: "집안일", state: "empty" },
   { id: "t3", kind: "task", group: "낮", title: "치과 예약 전화", weight: "light", due: 5, list: "집안일", state: "done" },
   { id: "t4", kind: "task", group: "언제든", title: "여행 숙소 비교", weight: "heavy", due: 12, list: "여행 준비", state: "empty" },
 ];
+// 하루 마감에서 내일로 넘기거나 버린 일은 오늘 화면에 나오지 않는다.
+const isOnToday = (item) => !item.deferred && !item.dropped;
+const durationText = (m) => [Math.floor(m / 60) ? `${Math.floor(m / 60)}시간` : "", m % 60 ? `${m % 60}분` : ""].filter(Boolean).join(" ");
 const stateName = { empty: "안 함", done: "달성", rest: "쉼", skipped: "건너뜀" };
 const monthName = { done: "달성", partial: "일부", missed: "미달", rest: "쉼" };
 const monthState = { d: "done", p: "partial", m: "missed", r: "rest" };
 const november = "rdddpddddrddmdddpddddrdd".padEnd(30, "d");
 
-// streak은 어제까지의 기록이다. 오늘 달성하면 하루를 더한다.
-const streakOf = (item) => item.streak + (item.state === "done" ? 1 : 0);
+// 하루 마감을 끝내면 고르지 않은 습관은 미달로 계산한다. state는 그대로 두어 다시 열 수 있다.
+let mockDayClosed = false;
+// 마감 뒤에 만든 습관은 그날 할 기회가 없었으므로 미달로 치지 않는다.
+const missedByClose = (item) => mockDayClosed && item.state === "empty" && !item.addedAfterClose;
+
+// streak은 어제까지의 기록이다. 오늘 달성하면 하루를 더하고, 마감된 날 미달이면 끊긴다.
+const streakOf = (item) => {
+  if (missedByClose(item)) return 0;
+  return item.streak + (item.state === "done" ? 1 : 0);
+};
 function dayState(item, day) {
   // 시작일 전에는 기록이 없다. 새 습관이 지난 신호등과 통계를 바꾸면 안 된다.
   if (item.startDay && day < item.startDay) return "";
-  if (day === 23) return item.state === "done" || item.state === "rest" ? item.state : "";
+  if (day === 23) {
+    if (item.state === "done" || item.state === "rest") return item.state;
+    return missedByClose(item) ? "missed" : "";
+  }
   if (day > 23) return "";
   const missedDay = 22 - item.streak;
   if (day === missedDay) return "missed";
@@ -98,23 +128,26 @@ function dayLight(day) {
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const mockIcon = (id, cls = "") => `<svg class="icon ${cls}"><use href="#i-${id}"/></svg>`;
 
+const MAC_TODAY = "today.html?device=mac";
+
 function renderMacSidebar(active) {
   const link = (id, href, iconId, label, count = "") => `<a class="side-item ${id === active ? "is-active" : ""}" href="${href}" ${id === active ? 'aria-current="page"' : ""}>${mockIcon(iconId, "icon--sidebar")}<span class="side-item__label">${label}</span><span class="side-item__count" ${id === "today" ? "data-open-count" : ""}>${count}</span></a>`;
-  const open = MOCK_ITEMS.filter((i) => i.state === "empty").length;
+  const open = MOCK_ITEMS.filter((i) => isOnToday(i) && i.state === "empty").length;
   document.querySelector("[data-mac-sidebar]").innerHTML = `
-    ${link("today", "today.html", "today", "오늘", open)}
+    ${link("today", MAC_TODAY, "today", "오늘", open)}
     ${link("calendar", "mac-calendar.html", "calendar", "캘린더")}
     ${link("focus", "mac-focus.html", "focus", "집중")}
     ${link("stats", "mac-stats.html", "stats", "통계")}
     <h2 class="side-title">목록</h2>
     ${link("inbox", "mac-command.html#add", "inbox", "수집함", 3)}
-    ${link("home", "today.html", "list", "집안일", 5)}
-    ${link("work", "today.html", "list", "회사", 8)}
-    ${link("trip", "today.html", "list", "여행 준비", 2)}
+    ${link("home", MAC_TODAY, "list", "집안일", 5)}
+    ${link("work", MAC_TODAY, "list", "회사", 8)}
+    ${link("trip", MAC_TODAY, "list", "여행 준비", 2)}
     <a class="side-item side-item--command ${active === "command" ? "is-active" : ""}" href="${active === "command" ? "mac-command.html" : "mac-command.html?from=sidebar"}">${mockIcon("search", "icon--sidebar")}<span class="side-item__label">찾기와 명령</span><kbd class="menu__key">⌘K</kbd></a>`;
 }
 
 document.addEventListener("keydown", (event) => {
+  if (document.documentElement.dataset.device === "phone") return;
   if (event.metaKey && event.key.toLowerCase() === "k" && document.querySelector("[data-mac-sidebar]") && !location.pathname.endsWith("mac-command.html")) {
     event.preventDefault();
     location.href = "mac-command.html?from=shortcut";
@@ -122,9 +155,13 @@ document.addEventListener("keydown", (event) => {
 });
 
 let toastTimer;
-function showToast(text, undo) {
+function dismissToast() {
   document.querySelector(".toast--floating")?.remove();
   clearTimeout(toastTimer);
+}
+
+function showToast(text, undo) {
+  dismissToast();
   const toast = document.createElement("div");
   toast.className = "toast toast--floating";
   toast.setAttribute("role", "status");
@@ -134,7 +171,10 @@ function showToast(text, undo) {
     toast.remove();
     undo();
   });
-  document.body.append(toast);
+  const toastHost = document.querySelector("[data-toast-host]");
+  (toastHost ?? document.body).append(toast);
+  // 기기 위쪽이 창 밖으로 스크롤됐으면 보이는 영역 안에 띄운다.
+  if (toastHost) toast.style.marginTop = `${Math.max(0, -toastHost.getBoundingClientRect().top)}px`;
   toastTimer = setTimeout(() => toast.remove(), 5000);
 }
 
@@ -314,7 +354,7 @@ function createWheel(el, labels, { loop, label, onPick }) {
   };
 }
 
-function setupPicker(root) {
+function setupPicker(root, onChange) {
   const el = root.querySelector("[data-time-picker]");
   const toggle = el.querySelector("[data-time-switch]");
   const dial = el.querySelector("[data-time-wheel]");
@@ -332,6 +372,7 @@ function setupPicker(root) {
     band = bandOf(time);
     pressChip(chips, band);
     render();
+    onChange?.();
   };
   const wheels = {
     period: createWheel(el.querySelector('[data-wheel="period"]'), ["오전", "오후"], { loop: false, label: "오전 오후", onPick }),
@@ -374,6 +415,13 @@ function setupPicker(root) {
       else if (time && bandOf(time) !== band) time = `${pad(BAND_START[band])}:00`;
       showWheels();
     },
+    setTime(next) {
+      time = next;
+      band = bandOf(next);
+      pressChip(chips, band);
+      showWheels();
+    },
+    value: () => ({ band, time }),
   };
 }
 

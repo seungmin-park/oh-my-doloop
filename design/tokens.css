@@ -109,6 +109,7 @@
   --size-day: 28px;
   --size-now-dot: 10px;
   --size-sheet-handle: 36px;
+  --size-touch: 44px;
   --size-switch-width: 36px;
   --size-switch-height: 20px;
   --size-switch-thumb: 16px;
@@ -127,6 +128,7 @@
 
   /* 캘린더와 집중 */
   --size-calendar-slot: 16px;
+  --size-calendar-slot-phone: 24px;
   --width-calendar-gutter: 40px;
   --width-calendar-pool: 176px;
   --size-focus-ring: 240px;
@@ -136,6 +138,11 @@
   --mock-mac-height: 760px;
   --mock-phone-width: 390px;
   --mock-phone-height: 844px;
+
+  /* 화면 모음 */
+  --width-overview: 1440px;
+  --width-preview-mac: 400px;
+  --width-preview-phone: 200px;
 
   /* 모서리. 요소가 클수록 크게 쓴다. */
   --radius-control: 4px;

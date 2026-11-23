@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oh-my-doloop 화면 모음</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<script src="mock.js"></script>
+<div class="mock-tools">
+  <div class="segmented" role="group" aria-label="테마">
+    <button data-theme-set="light">라이트</button>
+    <button data-theme-set="dark">다크</button>
+  </div>
+</div>
+
+<main class="overview">
+  <header class="overview__head">
+    <h1 class="large-title">화면 모음</h1>
+    <a class="btn btn--link" href="components.html">부품 보기</a>
+  </header>
+  <section class="overview__section" aria-labelledby="overview-mac">
+    <h2 class="screen-title" id="overview-mac">Mac</h2>
+    <div class="overview__grid overview__grid--mac" data-screens="mac"></div>
+  </section>
+  <section class="overview__section" aria-labelledby="overview-phone">
+    <h2 class="screen-title" id="overview-phone">iPhone</h2>
+    <div class="overview__grid overview__grid--phone" data-screens="phone"></div>
+  </section>
+</main>
+
+<script>
+const SCREENS = {
+  mac: [
+    ["오늘", "today.html?device=mac"],
+    ["캘린더", "mac-calendar.html"],
+    ["집중", "mac-focus.html"],
+    ["통계", "mac-stats.html"],
+    ["습관 고치기", "mac-edit.html"],
+    ["명령 팔레트", "mac-command.html"],
+    ["빠른 추가", "mac-command.html#add"],
+  ],
+  phone: [
+    ["오늘", "today.html?device=phone"],
+    ["편집 시트", "today.html?device=phone&edit=r5"],
+    ["캘린더", "ios-calendar.html"],
+    ["루틴 실행", "ios-run.html"],
+    ["통계", "ios-stats.html"],
+    ["하루 마감", "ios-closing.html"],
+  ],
+};
+
+const tokens = getComputedStyle(document.documentElement);
+const tokenSize = (name) => parseFloat(tokens.getPropertyValue(name));
+const deviceSize = {
+  mac: [tokenSize("--mock-mac-width"), tokenSize("--mock-mac-height")],
+  phone: [tokenSize("--mock-phone-width"), tokenSize("--mock-phone-height")],
+};
+
+// 미리보기는 시안 상태를 쓰지 않도록 embed로 연다.
+function embedSrc(href) {
+  const [path, hash] = href.split("#");
+  const theme = document.documentElement.dataset.theme;
+  return `${path}${path.includes("?") ? "&" : "?"}embed=1&theme=${theme}${hash ? `#${hash}` : ""}`;
+}
+
+function fit(preview) {
+  const [width, height] = deviceSize[preview.dataset.device];
+  const scale = preview.clientWidth / width;
+  const border = preview.offsetWidth - preview.clientWidth;
+  preview.style.setProperty("--preview-scale", scale);
+  preview.style.height = `${height * scale + border}px`;
+}
+
+const fitter = new ResizeObserver((entries) => entries.forEach(({ target }) => fit(target)));
+const syncTheme = (frame) => frame.contentWindow?.postMessage({ doloopTheme: document.documentElement.dataset.theme }, "*");
+
+Object.entries(SCREENS).forEach(([device, list]) => {
+  const label = device === "mac" ? "Mac" : "iPhone";
+  document.querySelector(`[data-screens="${device}"]`).innerHTML = list.map(([name, href]) => `<article class="screen-card">
+    <a class="screen-card__link" href="${href.replaceAll("&", "&amp;")}" aria-label="${label} ${name} 열기">${name}</a>
+    <div class="preview preview--${device}" data-device="${device}" aria-hidden="true">
+      <iframe src="${embedSrc(href).replaceAll("&", "&amp;")}" title="${label} ${name} 미리보기" loading="lazy" tabindex="-1" inert></iframe>
+    </div>
+  </article>`).join("");
+});
+
+document.querySelectorAll(".preview").forEach((preview) => {
+  fit(preview);
+  fitter.observe(preview);
+  const frame = preview.querySelector("iframe");
+  frame.addEventListener("load", () => syncTheme(frame));
+});
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest("[data-theme-set]")) document.querySelectorAll(".preview iframe").forEach(syncTheme);
+});
+</script>
+</body>
+</html>

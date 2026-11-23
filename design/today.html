@@ -9,6 +9,8 @@
 </head>
 <body>
 <script src="mock.js"></script>
+<script src="phone.js"></script>
+<script src="habit-form.js"></script>
 
 <div class="mock-tools">
   <div class="segmented" role="group" aria-label="테마">
@@ -26,12 +28,7 @@
 
   <section class="device device--phone" aria-label="iPhone 오늘 화면">
     <div class="phone-main" data-today></div>
-    <nav class="tabbar" aria-label="탭">
-      <button class="tab is-active"><svg class="icon icon--sidebar"><use href="#i-today"/></svg>오늘</button>
-      <button class="tab"><svg class="icon icon--sidebar"><use href="#i-calendar"/></svg>캘린더</button>
-      <button class="tab"><svg class="icon icon--sidebar"><use href="#i-stats"/></svg>통계</button>
-      <button class="tab"><svg class="icon icon--sidebar"><use href="#i-more"/></svg>더 보기</button>
-    </nav>
+    <nav class="tabbar" aria-label="탭" data-phone-tabs></nav>
   </section>
 </main>
 
@@ -61,21 +58,23 @@ function body(item) {
 const rowState = (item) => [item.id === selected ? "is-selected" : "", item.state !== "empty" ? "is-complete" : ""].join(" ");
 
 function flowGroup(name, past) {
-  const list = items.filter((i) => i.group === name);
+  const list = items.filter((i) => isOnToday(i) && i.group === name);
   return list.map((item, n) => `<div class="flow__item row--two-line ${past ? "is-past" : ""} ${rowState(item)}"><div class="flow__period">${n === 0 ? name : ""}</div><div class="flow__node">${control(item)}</div>${body(item)}</div>`).join("");
 }
 
 const flowGap = (past) => `<div class="flow__gap ${past ? "is-past" : ""}"><span></span><div class="flow__node"></div><span></span></div>`;
 
-function today() {
-  const routines = items.filter((i) => i.kind === "routine");
+function today(isPhone) {
+  const routines = items.filter((i) => isOnToday(i) && i.kind === "routine");
   const done = routines.filter((i) => i.state === "done").length;
   const days = week.map(([w, d, now]) => [w, d, d < 23 ? dayLight(d) : "", now]).map(([w, d, s, now]) => `<button class="day ${now ? "is-today" : ""}" aria-label="11월 ${d}일 ${w}요일${s ? `, ${monthName[s]}` : ""}"><span>${w}</span><span class="day__date">${d}</span><span class="light ${s ? `light--${s}` : ""}"></span></button>`).join("");
-  const later = items.filter((i) => i.group === "언제든");
+  const later = items.filter((i) => isOnToday(i) && i.group === "언제든");
+  const eveningOpen = items.some((i) => isOnToday(i) && i.kind === "routine" && i.group === "저녁" && i.state === "empty");
+  const runLink = eveningOpen ? `<a class="flow__now-action" href="${isPhone ? "ios-run.html" : "mac-focus.html"}">저녁 루틴 시작</a>` : "";
   return `<div class="today-main"><header class="today-head"><div><h1 class="large-title">오늘</h1><div class="screen-sub">11월 23일 월요일, 루틴 ${routines.length}개 중 ${done}개 달성</div></div><div class="week">${days}</div></header>
     <div class="flow">
       ${flowGroup("아침", true)}${flowGap(true)}${flowGroup("낮", true)}
-      <div class="flow__now is-past" role="img" aria-label="지금 오후 5시 40분"><span class="flow__period">지금</span><div class="flow__node"><span class="flow__now-dot"></span></div><span class="flow__now-line">17:40</span></div>
+      <div class="flow__now is-past"><span class="flow__period">지금</span><div class="flow__node"><span class="flow__now-dot"></span></div><span class="flow__now-line"><time aria-label="오후 5시 40분">17:40</time>${runLink}</span></div>
       ${flowGroup("저녁", false)}
     </div>
     <section class="flow-later section"><div class="section__head"><h2 class="section__title">시간 안 정한 일</h2></div>${later.map((item) => `<div class="row ${rowState(item)}">${control(item)}${body(item)}</div>`).join("")}</section>
@@ -115,11 +114,12 @@ function render() {
   const hostIndex = hosts.indexOf(host);
   const inputFocused = focus?.matches?.("[data-add-input]");
   hosts.forEach((el, i) => {
-    el.innerHTML = today();
+    el.innerHTML = today(el.matches(".phone-main"));
     el.querySelector("[data-add-input]").value = drafts.get(i) ?? "";
   });
   document.querySelector("[data-detail]").innerHTML = detail();
-  document.querySelector("[data-open-count]").textContent = items.filter((i) => i.state === "empty").length;
+  document.querySelector("[data-open-count]").textContent = items.filter((i) => isOnToday(i) && i.state === "empty").length;
+  savePhoneState();
   if (inputFocused && hostIndex >= 0) hosts[hostIndex].querySelector("[data-add-input]").focus();
   if (key && hostIndex >= 0) hosts[hostIndex].querySelector(`[data-${key[0]}="${key[1]}"]`)?.focus();
 }
@@ -146,21 +146,17 @@ function setStatus(item, state, host) {
   });
 }
 
-document.addEventListener("contextmenu", (e) => {
-  const target = e.target.closest("[data-toggle], [data-select]");
-  if (!target) return;
+function openStatusMenu(target, clientX, clientY) {
   const id = target.dataset.toggle ?? target.dataset.select;
   const item = items.find((i) => i.id === id);
-  if (item.kind !== "routine") return;
-  e.preventDefault();
   const host = target.closest("[data-today]");
   const box = target.getBoundingClientRect(); // 다시 그리면 target이 떨어지므로 먼저 읽는다.
   selected = id;
   render();
   const focusRow = () => host.querySelector(`[data-toggle="${id}"]`)?.focus();
   openMenu({
-    x: e.clientX || box.left,
-    y: e.clientY || box.bottom,
+    x: clientX || box.left,
+    y: clientY || box.bottom,
     label: `${item.title} 상태`,
     items: statusItems(),
     current: item.state,
@@ -170,9 +166,88 @@ document.addEventListener("contextmenu", (e) => {
     },
     onClose: focusRow,
   });
+}
+
+document.addEventListener("contextmenu", (e) => {
+  const target = e.target.closest("[data-toggle], [data-select]");
+  if (!target) return;
+  const id = target.dataset.toggle ?? target.dataset.select;
+  if (items.find((i) => i.id === id).kind !== "routine") return;
+  e.preventDefault();
+  openStatusMenu(target, e.clientX, e.clientY);
 });
 
-let nextId = 1;
+// iPhone에서는 습관을 길게 눌러 쉼·건너뛰기를 고른다.
+let pressTimer = null;
+let pressStart = null;
+let longPressed = false;
+let suppressClickUntil = 0;
+function cancelPress() {
+  clearTimeout(pressTimer);
+  pressTimer = null;
+}
+document.addEventListener("pointerdown", (e) => {
+  const target = e.target.closest(".phone-main [data-toggle], .phone-main [data-select]");
+  if (!target || e.button !== 0) return;
+  const item = items.find((i) => i.id === (target.dataset.toggle ?? target.dataset.select));
+  if (item.kind !== "routine") return;
+  longPressed = false;
+  pressStart = [e.clientX, e.clientY];
+  cancelPress();
+  pressTimer = setTimeout(() => {
+    pressTimer = null;
+    longPressed = true;
+    openStatusMenu(target, pressStart[0], pressStart[1]);
+  }, 500);
+});
+document.addEventListener("pointermove", (e) => {
+  if (pressTimer && Math.hypot(e.clientX - pressStart[0], e.clientY - pressStart[1]) > 8) cancelPress();
+});
+document.addEventListener("pointerup", () => {
+  cancelPress();
+  if (longPressed) suppressClickUntil = Date.now() + 300;
+  longPressed = false;
+});
+document.addEventListener("pointercancel", () => {
+  cancelPress();
+  longPressed = false;
+});
+document.addEventListener("click", (e) => {
+  if (Date.now() < suppressClickUntil && !e.target.closest("[role=menu]")) {
+    suppressClickUntil = 0;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}, true);
+
+function openItemSheet(id) {
+  const item = items.find((i) => i.id === id && isOnToday(i));
+  if (!item) return;
+  selected = id;
+  render();
+  const device = document.querySelector(".device--phone");
+  const focusRow = () => device.querySelector(`.phone-main [data-select="${id}"]`)?.focus();
+  openEditSheet(device, item, {
+    onClose: focusRow,
+    onSave: (values) => {
+      if (item.kind === "routine") {
+        showToast("저장했습니다. 내일부터 적용됩니다");
+        return;
+      }
+      const before = { title: item.title, list: item.list, weight: item.weight, group: item.group, time: item.time };
+      Object.assign(item, { title: values.title, list: values.list, weight: values.weight, group: values.group, time: values.time });
+      render();
+      focusRow();
+      showToast("저장했습니다", () => {
+        Object.assign(item, before);
+        render();
+        focusRow();
+      });
+    },
+  });
+}
+
+let nextId = 1 + Math.max(0, ...items.map((i) => (/^n\d+$/.test(i.id) ? Number(i.id.slice(1)) : 0)));
 function addFromInput(input) {
   const raw = input.value.trim();
   const isHabit = raw.startsWith("~");
@@ -180,7 +255,7 @@ function addFromInput(input) {
   if (!title) return;
   const hostIndex = [...document.querySelectorAll("[data-today]")].indexOf(input.closest("[data-today]"));
   const item = isHabit
-    ? { id: `n${nextId}`, kind: "routine", group: "언제든", title, context: "새 습관", state: "empty", streak: 0, startDay: 23 }
+    ? { id: `n${nextId}`, kind: "routine", group: "언제든", title, context: "새 습관", state: "empty", streak: 0, startDay: 23, ...(mockDayClosed ? { addedAfterClose: true } : {}) }
     : { id: `n${nextId}`, kind: "task", group: "언제든", title, weight: "light", due: 7, list: "수집함", state: "empty" };
   nextId += 1;
   items.push(item);
@@ -205,7 +280,7 @@ document.addEventListener("keydown", (e) => {
     addFromInput(e.target);
     return;
   }
-  if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, [role=menu]")) return;
+  if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, [role=menu]") || document.querySelector(".sheet-layer")) return;
   const state = { 1: "done", 2: "rest", 3: "skipped", 0: "empty" }[e.key];
   const item = items.find((i) => i.id === selected);
   if (!state || item?.kind !== "routine") return;
@@ -225,13 +300,19 @@ document.addEventListener("click", (e) => {
       render();
     }
   } else if (select) {
-    selected = select.dataset.select;
-    render();
+    if (select.closest(".phone-main")) openItemSheet(select.dataset.select);
+    else {
+      selected = select.dataset.select;
+      render();
+    }
   }
 });
 
 renderMacSidebar("today");
+initPhone("today");
 render();
+const editId = new URLSearchParams(location.search).get("edit");
+if (editId) openItemSheet(editId);
 </script>
 </body>
 </html>
